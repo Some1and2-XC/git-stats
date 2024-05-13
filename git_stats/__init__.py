@@ -1,8 +1,6 @@
 from enum import Enum
 from requests import get
-from Lindex import lindex
 from collections import namedtuple
-import pandas as pd
 
 
 class Source(Enum):
@@ -38,20 +36,12 @@ def get_repos(user: str, source: Source) -> list[Repos]:
         case _:
             raise ValueError("Invalid Source!")
 
-
-    """
-    # Important DF Columns
-    These are the columns that should be included in every output
-     - name
-     - description
-     - created_at
-     - updated_at
-     - git_url
-     - svn_url
-    """
-
-    print(data)
     return data
+
+
+def get_commit_data():
+    """Function for getting raw commit information"""
+    ...
 
 
 if __name__ == "__main__":
