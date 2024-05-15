@@ -2,6 +2,8 @@ from enum import Enum
 from requests import get
 from collections import namedtuple
 
+from . import raw_parsing
+
 
 class Source(Enum):
     Selfhosted = 1
