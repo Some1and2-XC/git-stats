@@ -5,7 +5,7 @@ from glob import glob
 
 from Lindex import lindex
 
-def get_objects() -> lindex:
+def get_objects() -> lindex[bytes, bytes]:
     """Gets git objects from ./.git/objects/**"""
 
     objects = lindex(debug=False)
@@ -17,7 +17,7 @@ def get_objects() -> lindex:
     return objects
 
 
-def get_head(branch: str) -> str:
+def get_head(branch: str) -> bytes:
     """Gets the starting object by commit name"""
 
     with open(
@@ -33,7 +33,8 @@ def decompress_object(data: bytes) -> bytes:
     """Function for decompressing git objects"""
     return zlib \
         .decompress(data) \
-        .replace(b"\x00", b"\n")  # Replaces Null Character with new-line
+        .split(b"\x00")  # Splits on null character
+        # .replace(b"\x00", b"\n")  # Replaces Null Character with new-line
 
 
 if __name__ == "__main__":
