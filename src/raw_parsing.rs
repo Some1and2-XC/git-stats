@@ -1,12 +1,46 @@
+use core::fmt;
+
 use std::error::Error;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::fs::{self, DirEntry};
+use std::ptr::hash;
+
+use miniz_oxide::inflate::DecompressError;
 
 use super::GIT_FOLDERNAME;
 
+extern crate miniz_oxide;
+extern crate sha1_smol;
 
-#[derive(Debug)]
+
+#[derive(Debug, Clone)]
+pub struct ParseGitObjectError;
+
+impl fmt::Display for ParseGitObjectError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        return write!(f, "Can't parse git object from input!");
+    }
+}
+
+impl Error for ParseGitObjectError {}
+
+#[derive(Debug, Clone)]
+pub struct CommitObject {
+    pub commit: String,
+    pub parent: String,
+    pub author: String,
+    pub committer: String,
+}
+
+/*
+impl CommitObject {
+    pub fn from_str(in_string: &str) {
+    }
+}
+*/
+
+#[derive(Debug, Clone)]
 pub struct GitObject {
     pub dirname: OsString,
     pub filename: OsString,
@@ -23,8 +57,56 @@ impl GitObject {
             data,
         }
     }
-}
 
+    /// Initializes GitObject from a git name
+    pub fn from_index(basedir: &PathBuf, index: String) -> Result<Self, ParseGitObjectError> {
+        if index.len() < 3 {
+            return Err(ParseGitObjectError);
+        }
+
+        let (sub_folder, index) = index.split_at(2);
+
+        let object_path = basedir
+            .join("objects")
+            .join(sub_folder)
+            .join(index)
+            ;
+
+        let data = match fs::read(&object_path) {
+            Ok(v) => v,
+            Err(e) => return Err(ParseGitObjectError),
+        };
+
+        return Ok(GitObject::new(
+            sub_folder.into(),
+            index.into(),
+            object_path,
+            data,
+        ));
+    }
+
+    pub fn decompress_data(&self) -> Result<Vec<u8>, DecompressError> {
+        miniz_oxide::inflate::decompress_to_vec_zlib(&self.data)
+    }
+
+    pub fn get_data(&self) -> String {
+        String::from_utf8_lossy(
+            &self.decompress_data().unwrap()
+            ).to_string()
+    }
+
+    pub fn get_hash(&self) -> Option<String> {
+
+        // Checks if the data can even be decompressed
+        let hash_data = match self.decompress_data() {
+            Ok(v) => v,
+            Err(_) => return None,
+        };
+
+        // Gets hash
+        return Some(sha1_smol::Sha1::from(hash_data).digest().to_string());
+    }
+}
 
 /// Gets a list of the files in a directory
 pub fn ls(path: &Path) -> Result<Box<[DirEntry]>, Box<dyn Error>> {
@@ -52,7 +134,7 @@ pub fn get_repository(files: Box<[DirEntry]>) -> Option<PathBuf> {
 }
 
 
-pub fn get_objects(repo: PathBuf) -> Vec<GitObject> {
+pub fn get_git_objects(repo: PathBuf) -> Vec<GitObject> {
     let mut objects: Vec<GitObject> = Vec::new();
     let objects_path = repo
         .join("objects")
@@ -108,6 +190,25 @@ pub fn get_objects(repo: PathBuf) -> Vec<GitObject> {
         ;
 
     return objects;
+}
+
+pub fn get_branch(git_dir: &PathBuf, branch_name: String) -> Option<String> {
+    let branch_path = git_dir
+        .join("refs")
+        .join("heads")
+        .join(branch_name);
+
+    let branch_string = match fs::read(branch_path) {
+        Ok(v) => v,
+        Err(_) => return None,
+    };
+
+    let out_string = match String::from_utf8(branch_string) {
+        Ok(v) => v,
+        Err(_) => return None,
+    };
+
+    return Some(out_string.trim().into());
 }
 
 

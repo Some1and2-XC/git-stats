@@ -1,7 +1,7 @@
 mod raw_parsing;
 
 use raw_parsing::{
-    get_objects, get_repository, ls
+    get_branch, get_git_objects, get_repository, ls, GitObject
 };
 
 use std::{
@@ -31,9 +31,15 @@ fn main() {
         },
     };
 
+    let branch = get_branch(&repository, "main".into()).unwrap();
+    println!("{:?}", branch);
+
+    let head = GitObject::from_index(&repository, branch).unwrap();
+    println!("{}", head.get_data());
+
     // Get the git objects
-    let objects = get_objects(repository);
+    let objects = get_git_objects(repository);
     for object in objects {
-        println!("{:?}", object);
+        //. println!("{}", object.get_data());
     }
 }
