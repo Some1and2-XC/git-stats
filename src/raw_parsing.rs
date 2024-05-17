@@ -25,20 +25,47 @@ impl fmt::Display for ParseGitObjectError {
 
 impl Error for ParseGitObjectError {}
 
-#[derive(Debug, Clone)]
-pub struct CommitObject {
-    pub commit: String,
-    pub parent: String,
-    pub author: String,
-    pub committer: String,
+pub enum GitObjectType {
+    Commit(CommitObject),
 }
 
-/*
+#[derive(Debug, Clone)]
+pub struct CommitObject {
+    pub tree: Option<String>,
+    pub parent: Option<String>,
+    pub author: Option<String>,
+    pub committer: Option<String>,
+}
+
 impl CommitObject {
-    pub fn from_str(in_string: &str) {
+    /// Does parsing from a string and returns object instance
+    pub fn from_str(in_string: &str) -> Self {
+
+        let mut obj = CommitObject {
+            tree: None,
+            parent: None,
+            author: None,
+            committer: None,
+        };
+
+        for v in in_string.split("\n") {
+            let v = v.splitn(2, " ").collect::<Box<[&str]>>();
+            if v.len() == 2 {
+                if v[0] == "tree" {
+                    obj.tree = Some(v[1].to_owned());
+                } else if v[0] == "parent" {
+                    obj.parent = Some(v[1].to_owned());
+                } else if v[0] == "author" {
+                    obj.author = Some(v[1].to_owned());
+                } else if v[0] == "committer" {
+                    obj.committer = Some(v[1].to_owned());
+                }
+            }
+        }
+
+        return obj;
     }
 }
-*/
 
 #[derive(Debug, Clone)]
 pub struct GitObject {
@@ -59,17 +86,17 @@ impl GitObject {
     }
 
     /// Initializes GitObject from a git name
-    pub fn from_index(basedir: &PathBuf, index: String) -> Result<Self, ParseGitObjectError> {
+    pub fn from_index(basedir: &PathBuf, index: &str) -> Result<Self, ParseGitObjectError> {
         if index.len() < 3 {
             return Err(ParseGitObjectError);
         }
 
-        let (sub_folder, index) = index.split_at(2);
+        let (sub_folder, filename) = index.split_at(2);
 
         let object_path = basedir
             .join("objects")
             .join(sub_folder)
-            .join(index)
+            .join(filename)
             ;
 
         let data = match fs::read(&object_path) {
@@ -79,7 +106,7 @@ impl GitObject {
 
         return Ok(GitObject::new(
             sub_folder.into(),
-            index.into(),
+            filename.into(),
             object_path,
             data,
         ));
