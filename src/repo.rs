@@ -1,13 +1,11 @@
-use anyhow::{anyhow, Context, Error, Result};
+use anyhow::{anyhow, Context,Result};
 
 use super::GIT_FOLDERNAME;
 
 use core::fmt;
-use std::{
-    any, ffi::OsString, fs, path::PathBuf
-};
+use std::{ffi::OsString, fs, path::PathBuf};
 
-use crate::objects::{CommitObject, GitObject, ParseGitObjectError};
+use crate::objects::{CommitObject, GitObject};
 
 // Defines Repo Parsing Error
 #[derive(Debug, Clone)]
@@ -141,7 +139,7 @@ impl Repo {
         return Ok(self);
     }
 
-    pub fn get_branch(&self, branch_name: String) -> Result<String> {
+    pub fn get_branch_index(&self, branch_name: &str) -> Result<String> {
         let branch_path = self.dir
             .join("refs")
             .join("heads")
@@ -152,5 +150,12 @@ impl Repo {
         let out_string = String::from_utf8(branch_string)?;
 
         return Ok(out_string.trim().into());
+    }
+
+    pub fn get_branch(&self, branch_name: &str) -> Result<CommitObject> {
+        let branch_index = self.get_branch_index(branch_name)?;
+        let git_object = GitObject::from_index(self, &branch_index)?;
+        let commit_object = CommitObject::from_git_object(&git_object)?;
+        return Ok(commit_object);
     }
 }

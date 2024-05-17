@@ -1,9 +1,7 @@
 
 use core::fmt;
 use std::{
-    ffi::OsString,
-    path::PathBuf,
-    fs,
+    any, ffi::OsString, fs, path::PathBuf
 };
 use miniz_oxide::inflate::DecompressError;
 use anyhow::{anyhow, bail, ensure, Context, Error, Result};
@@ -64,6 +62,13 @@ impl CommitObject {
 
         return obj;
     }
+
+    pub fn from_git_object(git_object: &GitObject) -> Result<Self> {
+        let inner_data = git_object.get_data()?;
+        let in_string = String::from_utf8_lossy(&inner_data).to_string();
+        let commit_object = Self::from_str(&in_string);
+        return Ok(commit_object);
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -110,7 +115,9 @@ impl GitObject {
 
     /// Initializes GitObject from a git name
     pub fn from_index(repo: &Repo, index: &str) -> Result<Self> {
-        ensure!(index.len() < 3, ParseGitObjectError);
+        if index.len() < 3 {
+            return Err(anyhow!("Git object index must have longer hash than 3, index: '{}'", index));
+        }
 
         let (sub_folder, filename) = index.split_at(2);
 
