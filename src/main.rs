@@ -1,21 +1,24 @@
 mod raw_parsing;
-
-use raw_parsing::{
-    get_branch, get_git_objects, get_repository, ls, GitObject
-};
+mod repo;
+mod objects;
 
 use std::{
-    env::args_os, ffi::OsString, path::{Path, PathBuf}, process::exit, str::FromStr
+    str::FromStr,
+    env::args_os,
+    ffi::OsString,
+    path::PathBuf,
 };
 
-use crate::raw_parsing::CommitObject;
+use crate::repo::Repo;
+use crate::objects::GitObject;
+use crate::objects::CommitObject;
 
 const GIT_FOLDERNAME: &'static str = ".git";
 
-fn full_commit_from_index(repository: &PathBuf, index: &str) -> CommitObject {
+fn full_commit_from_index(repository: &Repo, index: &str) -> CommitObject {
 
     let git_object = GitObject::from_index(repository, index).unwrap();
-    let git_data_string = git_object.get_data().replace("\0", "\n");
+    let git_data_string = String::from_utf8_lossy(git_object.get_data().as_slice()).replace("\0", "\n");
 
     return CommitObject::from_str(&git_data_string);
 }
@@ -27,25 +30,18 @@ fn main() {
     let os_string = args_os()
         .nth(1)
         .unwrap_or(OsString::from_str(".").unwrap());
-    let path = Path::new::<OsString>(&os_string);
-
-    // Gets all the files in that path
-    let path_files = ls(path).unwrap();
+    let path = PathBuf::from(&os_string);
 
     // Gets the repository path from the files
-    let repository = match get_repository(path_files) {
-        Some(v) => v,
-        None => {
-            println!("Not a git repository!");
-            exit(1);
-        },
-    };
+    let repository = Repo::from_path(&path).unwrap().enumerate_branches().unwrap();
 
-    let branch = get_branch(&repository, "main".into()).unwrap();
+    // let branch = repository.get_branch("main".into()).unwrap();
+    let branches = repository.branches.as_ref().unwrap().to_owned();
+    let branch = repository.get_branch(branches[0].to_string_lossy().to_string()).unwrap();
     println!("{:?}", branch);
 
     let head = GitObject::from_index(&repository, &branch).unwrap();
-    let head_data = head.get_data().replace("\0", "\n");
+    let head_data = String::from_utf8_lossy(head.get_data().as_slice()).replace("\0", "\n");
     let parsed_value = CommitObject::from_str(&head_data);
     let mut search_value = parsed_value.to_owned();
 
@@ -58,12 +54,4 @@ fn main() {
     }
 
     return;
-    println!("{:?}", parsed_value);
-    println!("{}", head_data);
-
-    // Get the git objects
-    let objects = get_git_objects(repository);
-    for object in objects {
-        //. println!("{}", object.get_data());
-    }
 }
