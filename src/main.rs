@@ -1,4 +1,3 @@
-mod raw_parsing;
 mod repo;
 mod objects;
 
@@ -18,7 +17,12 @@ const GIT_FOLDERNAME: &'static str = ".git";
 fn full_commit_from_index(repository: &Repo, index: &str) -> CommitObject {
 
     let git_object = GitObject::from_index(repository, index).unwrap();
-    let git_data_string = String::from_utf8_lossy(git_object.get_data().as_slice()).replace("\0", "\n");
+    let git_data_string = String::from_utf8_lossy(
+        git_object
+            .get_data()
+            .unwrap()
+            .as_slice()
+        ).replace("\0", "\n");
 
     return CommitObject::from_str(&git_data_string);
 }
@@ -41,7 +45,12 @@ fn main() {
     println!("{:?}", branch);
 
     let head = GitObject::from_index(&repository, &branch).unwrap();
-    let head_data = String::from_utf8_lossy(head.get_data().as_slice()).replace("\0", "\n");
+    let head_data = String::from_utf8_lossy(
+        head
+            .get_data()
+            .unwrap()
+            .as_slice()
+            ).replace("\0", "\n");
     let parsed_value = CommitObject::from_str(&head_data);
     let mut search_value = parsed_value.to_owned();
 

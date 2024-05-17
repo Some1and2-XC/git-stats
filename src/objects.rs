@@ -116,20 +116,16 @@ impl GitObject {
         ));
     }
 
-    pub fn decompress_data(&self) -> Result<Vec<u8>, DecompressError> {
-        miniz_oxide::inflate::decompress_to_vec_zlib(&self.data)
-    }
-
     /// Gets and decompresses the underlying data
     /// from the object
-    pub fn get_data(&self) -> Vec<u8> {
-        return self.decompress_data().unwrap();
+    pub fn get_data(&self) -> Result<Vec<u8>, DecompressError> {
+        miniz_oxide::inflate::decompress_to_vec_zlib(&self.data)
     }
 
     pub fn get_hash(&self) -> Option<String> {
 
         // Checks if the data can even be decompressed
-        let hash_data = match self.decompress_data() {
+        let hash_data = match self.get_data() {
             Ok(v) => v,
             Err(_) => return None,
         };
