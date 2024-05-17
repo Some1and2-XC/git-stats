@@ -88,6 +88,7 @@ impl GitObject {
     /// Initializes GitObject from a git name
     pub fn from_index(basedir: &PathBuf, index: &str) -> Result<Self, ParseGitObjectError> {
         if index.len() < 3 {
+            println!("Index less than 3? Path: '{}'", index);
             return Err(ParseGitObjectError);
         }
 
@@ -101,7 +102,11 @@ impl GitObject {
 
         let data = match fs::read(&object_path) {
             Ok(v) => v,
-            Err(e) => return Err(ParseGitObjectError),
+            Err(_) => {
+                println!("Can't read file: '{}'.", object_path.to_string_lossy().to_string());
+                println!("Rehashing all objects... (This might take a while)");
+                return Err(ParseGitObjectError);
+            },
         };
 
         return Ok(GitObject::new(
