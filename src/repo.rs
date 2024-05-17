@@ -1,11 +1,13 @@
+use anyhow::{anyhow, Context, Error, Result};
+
 use super::GIT_FOLDERNAME;
 
 use core::fmt;
 use std::{
-    error::Error, ffi::OsString, fs, path::PathBuf
+    any, ffi::OsString, fs, path::PathBuf
 };
 
-use crate::objects::GitObject;
+use crate::objects::{CommitObject, GitObject, ParseGitObjectError};
 
 // Defines Repo Parsing Error
 #[derive(Debug, Clone)]
@@ -17,7 +19,7 @@ impl fmt::Display for ParseGitRepoError {
     }
 }
 
-impl Error for ParseGitRepoError {}
+impl std::error::Error for ParseGitRepoError {}
 
 /// Struct for repo object
 /// dir is the directory of the git repository (this includes the .git folder)
@@ -33,7 +35,7 @@ pub struct Repo {
 
 impl Repo {
     /// Tries to construct a repo from a provided path
-    pub fn from_path(path: &PathBuf) -> Result<Self, ParseGitRepoError> {
+    pub fn from_path(path: &PathBuf) -> Result<Self> {
 
         let git_path = path.join(GIT_FOLDERNAME);
         if git_path.exists() && git_path.is_dir() {
@@ -43,47 +45,67 @@ impl Repo {
                     branches: None,
                 });
         } else {
-            return Err(ParseGitRepoError);
+            return Err(anyhow!("Couldn't read repo in path: '{:?}'", git_path));
         }
     }
 
+    pub fn get_commit_from_index(&self, index: &str) -> Result<CommitObject> {
+        let git_object = GitObject::from_index(self, index)?;
+
+        let git_data_string = String::from_utf8_lossy(
+            git_object
+                .get_data()?
+                .as_slice()
+            ).replace("\0", "\n");
+
+        return Ok(CommitObject::from_str(&git_data_string));
+    }
+
     /// Returns a vec of all the git objects in a git directory
-    pub fn get_git_objects(&self) -> std::io::Result<Vec<GitObject>> {
+    pub fn get_git_objects(&self) -> Result<Vec<GitObject>> {
         let mut objects: Vec<GitObject> = Vec::new();
         let objects_path = self.dir
             .join("objects")
             ;
 
-        let obj_folder_names = match fs::read_dir(objects_path.to_owned()) {
-            Err(e) => return Err(e),
-            Ok(v) => {v
-                .filter_map(|v| {
-                    match v {
-                        Ok(v) => {
-                            let path = v.path();
+        let obj_folder_names = fs::read_dir(objects_path.to_owned())?
+            .filter_map(|v| {
+                match v {
+                    Ok(v) => {
+                        let path = v.path();
 
-                            let string_value = path.file_name().unwrap().to_string_lossy().to_string();
-                            if path.is_dir() && string_value.len() == 2 {
-                                return Some(path);
-                            } else {
-                                return None;
-                            }
+                        let string_value = path
+                            .file_name()
+                            .with_context(|| format!("Can't read filename from path: '{:?}'", path))
+                            .unwrap()
+                            .to_string_lossy()
+                            .to_string();
+                        if path.is_dir() && string_value.len() == 2 {
+                            return Some(path);
+                        } else {
+                            return None;
+                        }
 
-                        },
-                        _ => None,
-                    }
-                })
-                .collect::<Vec<PathBuf>>()
-            },
-        };
+                    },
+                    _ => None,
+                }
+            })
+            .collect::<Vec<PathBuf>>();
 
         let _ = obj_folder_names
             .iter()
             .map(|sub_folder| {
-                let sub_folder_name = sub_folder.file_name().unwrap();
-                let files = fs::read_dir(sub_folder).unwrap()
+                let sub_folder_name = sub_folder
+                    .file_name()
+                    .with_context(|| format!("Can't read filename from subfolder, file: '{:?}'", sub_folder))
+                    .unwrap();
+                let files = fs::read_dir(sub_folder)
+                    .with_context(|| format!("Can't read directory: '{:?}'", sub_folder))
+                    .unwrap()
                     .map(|v| {
-                        let path = v.unwrap().path();
+                        let path = v
+                            .unwrap()
+                            .path();
                         let data = fs::read(&path).unwrap();
                         return GitObject::new(
                             sub_folder_name.to_owned(),
@@ -103,39 +125,32 @@ impl Repo {
         return Ok(objects);
     }
 
-    pub fn enumerate_branches(mut self) -> Result<Self, ParseGitRepoError>{
-        match fs::read_dir(self.dir.join("refs").join("heads")) {
-            Ok(v) => {
-                self.branches = Some(
-                    v.filter_map(
-                        |dir| match dir {
-                            Ok(v) => Some(v.file_name()),
-                            Err(_) => None,
-                        }
-                    ).collect::<Box<[OsString]>>()
-                );
-                return Ok(self);
-            },
-            Err(_) => return Err(ParseGitRepoError),
-        }
+    pub fn enumerate_branches(mut self) -> Result<Self> {
+        let path = self.dir.join("refs").join("heads");
+        self.branches = Some(
+            fs::read_dir(&path)
+                .with_context(|| format!("Failed to read from path: '{:?}'", path))?
+                .filter_map(
+                    |dir| match dir {
+                        Ok(v) => Some(v.file_name()),
+                        Err(_) => None,
+                    }
+                ).collect::<Box<[OsString]>>()
+            );
+
+        return Ok(self);
     }
 
-    pub fn get_branch(&self, branch_name: String) -> Option<String> {
+    pub fn get_branch(&self, branch_name: String) -> Result<String> {
         let branch_path = self.dir
             .join("refs")
             .join("heads")
             .join(branch_name);
 
-        let branch_string = match fs::read(branch_path) {
-            Ok(v) => v,
-            Err(_) => return None,
-        };
+        let branch_string = fs::read(branch_path)?;
 
-        let out_string = match String::from_utf8(branch_string) {
-            Ok(v) => v,
-            Err(_) => return None,
-        };
+        let out_string = String::from_utf8(branch_string)?;
 
-        return Some(out_string.trim().into());
+        return Ok(out_string.trim().into());
     }
 }

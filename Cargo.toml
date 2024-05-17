@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0.84"
 miniz_oxide = "0.7.2"
 sha1_smol = "1.0.0"

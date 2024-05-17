@@ -8,6 +8,8 @@ use std::{
     path::PathBuf,
 };
 
+use anyhow::Result;
+
 use crate::repo::Repo;
 use crate::objects::GitObject;
 use crate::objects::CommitObject;
@@ -27,7 +29,7 @@ fn full_commit_from_index(repository: &Repo, index: &str) -> CommitObject {
     return CommitObject::from_str(&git_data_string);
 }
 
-fn main() {
+fn main() -> Result<()> {
 
 
     // Gets the path from input args
@@ -39,6 +41,10 @@ fn main() {
     // Gets the repository path from the files
     let repository = Repo::from_path(&path).unwrap().enumerate_branches().unwrap();
 
+    let res = repository.get_commit_from_index("ab").unwrap();
+    println!("{:?}", res);
+
+    return Ok(());
     // let branch = repository.get_branch("main".into()).unwrap();
     let branches = repository.branches.as_ref().unwrap().to_owned();
     let branch = repository.get_branch(branches[0].to_string_lossy().to_string()).unwrap();
@@ -54,7 +60,7 @@ fn main() {
     let parsed_value = CommitObject::from_str(&head_data);
     let mut search_value = parsed_value.to_owned();
 
-    for _ in 0..9999 {
+    for _ in 0..99999 {
         println!("{:?}", search_value);
         search_value = match search_value.parent {
             Some(v) => full_commit_from_index(&repository, &v),
@@ -62,5 +68,5 @@ fn main() {
         }
     }
 
-    return;
+    return Ok(());
 }
