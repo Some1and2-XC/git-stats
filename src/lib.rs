@@ -1,10 +1,24 @@
 #![warn(missing_docs)]
+
 //! git-stats is a library for parsing git files
 //! It gives access to information such as what is included in commits and how large the parsed
-//! files are
+//! files are.
+//! ```
+//! # use crate::git_stats::Repo;
+//! # use crate::git_stats::objects::CommitObject;
+//! # fn main() -> anyhow::Result<()> {
+//! let repo = Repo::from_path(".")? // Gets repo object
+//!     .enumerate_branches()?; // Makes repo object aware of its branches
+//!
+//! let main_branch = repo.get_branch("main")?; // Gets the main branch
+//! # return Ok(());
+//! # }
+//! ```
 
 
 pub mod objects;
-pub mod repo;
+mod repo;
+
+pub use crate::repo::Repo;
 
 const GIT_FOLDERNAME: &'static str = ".git";

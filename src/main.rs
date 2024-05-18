@@ -12,7 +12,6 @@ use anyhow::Result;
 
 use crate::repo::Repo;
 use crate::objects::GitObject;
-use crate::objects::CommitObject;
 
 const GIT_FOLDERNAME: &'static str = ".git";
 
@@ -26,7 +25,7 @@ fn main() -> Result<()> {
 
     // Gets the repository path from the files
     // And enumerates its branches
-    let repository = Repo::from_path(&path)?
+    let repository = Repo::from_pathbuf(&path)?
         .enumerate_branches()?
         ;
 

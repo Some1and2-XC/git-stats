@@ -3,7 +3,7 @@ use anyhow::{anyhow, Context,Result};
 use super::GIT_FOLDERNAME;
 
 use core::fmt;
-use std::{ffi::OsString, fs, path::PathBuf};
+use std::{ffi::OsString, fs, path::PathBuf, str::FromStr};
 
 use crate::objects::{CommitObject, GitObjectAttributes, GitObject};
 
@@ -32,8 +32,12 @@ pub struct Repo {
 }
 
 impl Repo {
+    pub fn from_path(path: &str) -> Result<Self> {
+        return Self::from_pathbuf(&PathBuf::from_str(path)?);
+    }
+
     /// Tries to construct a repo from a provided path
-    pub fn from_path(path: &PathBuf) -> Result<Self> {
+    pub fn from_pathbuf(path: &PathBuf) -> Result<Self> {
 
         let git_path = path.join(GIT_FOLDERNAME);
         if git_path.exists() && git_path.is_dir() {

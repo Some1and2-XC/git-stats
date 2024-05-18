@@ -1,7 +1,7 @@
 
 use core::fmt;
 use std::{
-    ffi::OsString, fs, path::PathBuf, str::FromStr,
+    ffi::OsString, fs, path::PathBuf,
 };
 use anyhow::{anyhow, bail, ensure, Context, Error, Result};
 
@@ -102,14 +102,14 @@ impl CommitObject {
 impl GitObjectAttributes for CommitObject {
     /// Makes a commit object from a filesystem git object
     /// ```
-    /// # use crate::objects::CommitObject;
-    /// # use crate::repo::Repo;
+    /// # use crate::git_stats::objects::{CommitObject, GitObject, GitObjectAttributes};
+    /// # use crate::git_stats::Repo;
     /// # use anyhow::Result;
     /// # fn main() -> Result<()> {
-    /// # let repo = Repo::from_path(&PathBuf::from_str(".")?)?;
-    /// # let commit_hash = GitObject::from_index(&repo, &repo.get_branch_index("main")?)?;
+    /// # let repo = Repo::from_path(".")?;
+    /// # let some_git_object = GitObject::from_index(&repo, &repo.get_branch_index("main")?)?;
     /// /* get some commit hash */
-    /// let obj: CommitObject = *CommitObject::from_git_object(&commit_hash)?;
+    /// let obj: CommitObject = *CommitObject::from_git_object(&some_git_object)?;
     /// # return Ok(());
     /// # }
     /// ```
