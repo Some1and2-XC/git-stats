@@ -18,7 +18,6 @@ const GIT_FOLDERNAME: &'static str = ".git";
 
 fn main() -> Result<()> {
 
-
     // Gets the path from input args
     let os_string = args_os()
         .nth(1)
@@ -32,7 +31,24 @@ fn main() -> Result<()> {
         ;
 
     let branch = repository.get_branch("main")?;
-    println!("{:?}", branch);
+    let parent_index = GitObject::from_index(&repository, &branch.parent.unwrap())?;
+
+    let _ = repository
+        .get_all_objects()?
+        .iter()
+        .map(|v| match v.initialize_from_data() {
+                Ok(obj) => {
+                    let _ = match obj {
+                        objects::GitObjectType::Commit(commit) => {
+                            // println!("Commit: {:?}", commit);
+                        },
+                    };
+                    return 1;},
+                Err(_) => 0,
+        })
+        .collect::<Vec<_>>()
+        ;
+
 
     return Ok(());
 }

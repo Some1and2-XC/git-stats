@@ -1,10 +1,9 @@
 
 use core::fmt;
 use std::{
-    any, ffi::OsString, fs, path::PathBuf
+    ffi::OsString, fs, path::PathBuf,
 };
-use miniz_oxide::inflate::DecompressError;
-use anyhow::{anyhow, bail, ensure, Context, Error, Result};
+use anyhow::{anyhow, ensure, Context, Result};
 
 use crate::repo::Repo;
 
@@ -22,8 +21,13 @@ impl fmt::Display for ParseGitObjectError {
 
 impl std::error::Error for ParseGitObjectError {}
 
+#[derive(Debug)]
 pub enum GitObjectType {
     Commit(CommitObject),
+}
+
+pub trait GitObjectAttributes {
+    fn from_git_object(git_object: &GitObject) -> Result<Box<Self>>;
 }
 
 #[derive(Debug, Clone)]
@@ -59,17 +63,28 @@ impl CommitObject {
                 }
             }
         }
-
         return obj;
     }
 
-    pub fn from_git_object(git_object: &GitObject) -> Result<Self> {
+}
+
+impl GitObjectAttributes for CommitObject {
+    fn from_git_object(git_object: &GitObject) -> Result<Box<Self>> {
         let inner_data = git_object.get_data()?;
         let in_string = String::from_utf8_lossy(&inner_data).to_string();
         let commit_object = Self::from_str(&in_string);
-        return Ok(commit_object);
+        return Ok(Box::new(commit_object));
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct TreeObject {
+}
+
+#[derive(Debug, Clone)]
+pub struct BlobObject {
+}
+
 
 #[derive(Debug, Clone)]
 pub struct GitObject {
@@ -94,22 +109,48 @@ impl GitObject {
         let internal_data = self.get_data()?.as_slice().to_owned();
         let git_data = String::from_utf8_lossy(&internal_data)
             .splitn(2, "\0")
-            .map(|v| v.to_string().to_owned())
+            .map(|v| v.to_string())
             .collect::<Vec<String>>();
 
-        // The length
-        if git_data.len() != 2 {
-            return Err(
-                anyhow!(
-                    "Null character not found! Data: {}",
-                    String::from_utf8_lossy(&internal_data)
-                    ));
+
+        ensure!(git_data.len() == 2, anyhow!(
+            "Null character not found! Data: {}",
+            String::from_utf8_lossy(&internal_data)
+        ));
+
+        // Gets first segment
+        let git_data_meta = git_data[0]
+            .splitn(2, " ")
+            .map(|v| v)
+            .collect::<Vec<&str>>()
+            ;
+
+        ensure!(git_data_meta.len() == 2, anyhow!("Git Data type isn't of length 2! Data: '{:?}'", git_data_meta));
+
+        let git_data_type = git_data_meta[0];
+        let git_data_size = git_data_meta[1];
+
+        // println!("Data: {:?}", git_data_type);
+        if git_data_type == "tree" {
+            println!(
+                "Data: '{:?}' & Diff: '{}'",
+                internal_data,
+                git_data[1].len() - git_data_size.parse::<usize>()?,
+                )
         }
 
-        if git_data[0] == "" {
-            bail!(ParseGitObjectError);
+        if git_data_type == "commit" {
+            return Ok(GitObjectType::Commit(
+                CommitObject::from_str(&git_data[1])
+            ));
+        } else if git_data_type == "tree" {
+            // println!("{:?}", git_data);
+            return Err(anyhow!("Not implemented yet!"));
+        } else if git_data_type == "blob" {
+            // println!("{:?}", git_data);
+            return Err(anyhow!("Not implemented yet!"));
         } else {
-            bail!(ParseGitObjectError);
+            return Err(anyhow!("Git Datatype: '{}' not found!", git_data_type));
         }
     }
 
@@ -149,6 +190,7 @@ impl GitObject {
         }
     }
 
+    /// Gets the sha1 hash of the object inner
     pub fn get_hash(&self) -> Result<String> {
 
         // Checks if the data can even be decompressed

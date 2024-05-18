@@ -5,7 +5,7 @@ use super::GIT_FOLDERNAME;
 use core::fmt;
 use std::{ffi::OsString, fs, path::PathBuf};
 
-use crate::objects::{CommitObject, GitObject};
+use crate::objects::{CommitObject, GitObjectAttributes, GitObject};
 
 // Defines Repo Parsing Error
 #[derive(Debug, Clone)]
@@ -60,7 +60,7 @@ impl Repo {
     }
 
     /// Returns a vec of all the git objects in a git directory
-    pub fn get_git_objects(&self) -> Result<Vec<GitObject>> {
+    pub fn get_all_objects(&self) -> Result<Vec<GitObject>> {
         let mut objects: Vec<GitObject> = Vec::new();
         let objects_path = self.dir
             .join("objects")
@@ -156,6 +156,6 @@ impl Repo {
         let branch_index = self.get_branch_index(branch_name)?;
         let git_object = GitObject::from_index(self, &branch_index)?;
         let commit_object = CommitObject::from_git_object(&git_object)?;
-        return Ok(commit_object);
+        return Ok(*commit_object);
     }
 }
