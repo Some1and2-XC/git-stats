@@ -31,7 +31,7 @@ fn main() -> Result<()> {
         ;
 
     let branch = repository.get_branch("main")?;
-    let parent_index = GitObject::from_index(&repository, &branch.parent.unwrap())?;
+    let parent_index = GitObject::from_index(&repository, &branch.parent)?;
 
     let _ = repository
         .get_all_objects()?

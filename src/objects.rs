@@ -3,7 +3,7 @@ use core::fmt;
 use std::{
     ffi::OsString, fs, path::PathBuf,
 };
-use anyhow::{anyhow, ensure, Context, Result};
+use anyhow::{anyhow, bail, ensure, Context, Error, Result};
 
 use crate::repo::Repo;
 
@@ -32,38 +32,42 @@ pub trait GitObjectAttributes {
 
 #[derive(Debug, Clone)]
 pub struct CommitObject {
-    pub tree: Option<String>,
-    pub parent: Option<String>,
-    pub author: Option<String>,
-    pub committer: Option<String>,
+    pub tree: String,
+    pub parent: String,
+    pub author: String,
+    pub committer: String,
 }
 
 impl CommitObject {
     /// Does parsing from a string and returns object instance
-    pub fn from_str(in_string: &str) -> Self {
+    pub fn from_str(in_string: &str) -> Result<Self> {
 
-        let mut obj = CommitObject {
-            tree: None,
-            parent: None,
-            author: None,
-            committer: None,
-        };
+        let mut tree: Result<String> = Err(anyhow!("Failed to parse 'tree' from string: '{:?}'.", in_string));
+        let mut parent: Result<String> = Err(anyhow!("Failed to parse 'parent' from string: '{:?}'.", in_string));
+        let mut author: Result<String> = Err(anyhow!("Failed to parse 'author' from string: '{:?}'.", in_string));
+        let mut committer: Result<String> = Err(anyhow!("Failed to parse 'committer' from string: '{:?}'.", in_string));
 
         for v in in_string.split("\n") {
             let v = v.splitn(2, " ").collect::<Box<[&str]>>();
             if v.len() == 2 {
                 if v[0] == "tree" {
-                    obj.tree = Some(v[1].to_owned());
+                    tree = Ok(v[1].to_owned());
                 } else if v[0] == "parent" {
-                    obj.parent = Some(v[1].to_owned());
+                    parent = Ok(v[1].to_owned());
                 } else if v[0] == "author" {
-                    obj.author = Some(v[1].to_owned());
+                    author = Ok(v[1].to_owned());
                 } else if v[0] == "committer" {
-                    obj.committer = Some(v[1].to_owned());
+                    committer = Ok(v[1].to_owned());
                 }
             }
         }
-        return obj;
+
+        return Ok(Self {
+            tree: tree?,
+            parent: parent?,
+            author: author?,
+            committer: committer?,
+        });
     }
 
 }
@@ -72,8 +76,12 @@ impl GitObjectAttributes for CommitObject {
     fn from_git_object(git_object: &GitObject) -> Result<Box<Self>> {
         let inner_data = git_object.get_data()?;
         let in_string = String::from_utf8_lossy(&inner_data).to_string();
-        let commit_object = Self::from_str(&in_string);
-        return Ok(Box::new(commit_object));
+        let push_string = in_string.splitn(2, "\0").collect::<Vec<&str>>();
+        if push_string.len() != 2 {
+            bail!(anyhow!("Couldn't find null character in string: '{}'", in_string));
+        }
+        let commit_object = Self::from_str(push_string[1]);
+        return Ok(Box::new(commit_object?));
     }
 }
 
@@ -141,7 +149,7 @@ impl GitObject {
 
         if git_data_type == "commit" {
             return Ok(GitObjectType::Commit(
-                CommitObject::from_str(&git_data[1])
+                CommitObject::from_str(&git_data[1])?
             ));
         } else if git_data_type == "tree" {
             // println!("{:?}", git_data);
@@ -168,10 +176,7 @@ impl GitObject {
             .join(filename)
             ;
 
-        let data = fs::read(&object_path)
-            .with_context(
-                || format!("Failed to read file: '{}'.", object_path.to_string_lossy().to_string())
-                )?;
+        let data = fs::read(&object_path)?;
 
         return Ok(GitObject::new(
             sub_folder.into(),

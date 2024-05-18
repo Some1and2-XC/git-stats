@@ -56,7 +56,7 @@ impl Repo {
                 .as_slice()
             ).replace("\0", "\n");
 
-        return Ok(CommitObject::from_str(&git_data_string));
+        return Ok(CommitObject::from_str(&git_data_string)?);
     }
 
     /// Returns a vec of all the git objects in a git directory
@@ -74,7 +74,6 @@ impl Repo {
 
                         let string_value = path
                             .file_name()
-                            .with_context(|| format!("Can't read filename from path: '{:?}'", path))
                             .unwrap()
                             .to_string_lossy()
                             .to_string();
@@ -95,10 +94,8 @@ impl Repo {
             .map(|sub_folder| {
                 let sub_folder_name = sub_folder
                     .file_name()
-                    .with_context(|| format!("Can't read filename from subfolder, file: '{:?}'", sub_folder))
                     .unwrap();
                 let files = fs::read_dir(sub_folder)
-                    .with_context(|| format!("Can't read directory: '{:?}'", sub_folder))
                     .unwrap()
                     .map(|v| {
                         let path = v
@@ -126,8 +123,7 @@ impl Repo {
     pub fn enumerate_branches(mut self) -> Result<Self> {
         let path = self.dir.join("refs").join("heads");
         self.branches = Some(
-            fs::read_dir(&path)
-                .with_context(|| format!("Failed to read from path: '{:?}'", path))?
+            fs::read_dir(&path)?
                 .filter_map(
                     |dir| match dir {
                         Ok(v) => Some(v.file_name()),
