@@ -19,10 +19,7 @@ impl fmt::Display for ParseGitRepoError {
 
 impl std::error::Error for ParseGitRepoError {}
 
-/// Struct for repo object
-/// dir is the directory of the git repository (this includes the .git folder)
-/// branches is an a list of the branches that exist
-/// branches is 'None' if the branches haven't been initializes yet
+/// Struct that represents a repository.
 #[derive(Debug, Clone)]
 pub struct Repo {
     pub dir: PathBuf,
@@ -32,11 +29,16 @@ pub struct Repo {
 }
 
 impl Repo {
+    /// Constructs a repo object from a path.
+    /// ```
+    /// # use crate::git_stats::Repo;
+    /// let repo = Repo::from_path(".").unwrap();
+    /// ```
     pub fn from_path(path: &str) -> Result<Self> {
         return Self::from_pathbuf(&PathBuf::from_str(path)?);
     }
 
-    /// Tries to construct a repo from a provided path
+    /// Tries to construct a repo from a path.
     pub fn from_pathbuf(path: &PathBuf) -> Result<Self> {
 
         let git_path = path.join(GIT_FOLDERNAME);

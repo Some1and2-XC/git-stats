@@ -15,8 +15,10 @@
 //! # }
 //! ```
 
-
+/// The object module is for utilities that relate to git objects. This includes the
+/// [`objects::CommitObject`] and more.
 pub mod objects;
+
 mod repo;
 
 pub use crate::repo::Repo;
