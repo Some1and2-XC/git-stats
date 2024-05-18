@@ -27,7 +27,7 @@ impl std::error::Error for ParseGitRepoError {}
 pub struct Repo {
     pub dir: PathBuf,
     /// Is None is the branches haven't been searched for yet
-    /// Is Some([Branches]) if is has.
+    /// Is Some(\[Branches\]) if is has.
     pub branches: Option<Box<[OsString]>>,
 }
 

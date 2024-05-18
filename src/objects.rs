@@ -1,7 +1,7 @@
 
 use core::fmt;
 use std::{
-    ffi::OsString, fs, path::PathBuf,
+    ffi::OsString, fs, path::PathBuf, str::FromStr,
 };
 use anyhow::{anyhow, bail, ensure, Context, Error, Result};
 
@@ -21,25 +21,52 @@ impl fmt::Display for ParseGitObjectError {
 
 impl std::error::Error for ParseGitObjectError {}
 
+/// Enum that reprensents a database git object
 #[derive(Debug)]
 pub enum GitObjectType {
+    /// The commit variant
     Commit(CommitObject),
 }
 
+/// Trait for every kind of git database object
 pub trait GitObjectAttributes {
+    /// Gets an object from a passed git object
+    /// Usage can be found here [`CommitObject::from_git_object`]
     fn from_git_object(git_object: &GitObject) -> Result<Box<Self>>;
 }
 
+/// Object that represents a commit
+/// Designed to be initialized using the [`CommitObject::from_str`] function.
 #[derive(Debug, Clone)]
 pub struct CommitObject {
+    /// The hash that points to the commits tree object
     pub tree: String,
+    /// The hash that points to the previous commit object
     pub parent: String,
+    /// The commit's author string
     pub author: String,
+    /// The commit's committer string
     pub committer: String,
 }
 
 impl CommitObject {
     /// Does parsing from a string and returns object instance
+    /// <section class="warning">
+    /// Note raw git files use the <code>\0</code> character to separate metadata from
+    /// the actual data so if reading manually, this has to be separated out.
+    /// </section>
+    ///
+    /// ```
+    /// # use crate::git_stats::objects::CommitObject;
+    /// let commit = CommitObject::from_str("
+    /// tree some_big_hash
+    /// parent some_big_hash
+    /// author some_committer
+    /// committer some_committer
+    /// ".trim()).unwrap();
+    /// assert_eq!(commit.tree, "some_big_hash");
+    /// assert_eq!(commit.committer, "some_committer");
+    /// ```
     pub fn from_str(in_string: &str) -> Result<Self> {
 
         let mut tree: Result<String> = Err(anyhow!("Failed to parse 'tree' from string: '{:?}'.", in_string));
@@ -73,7 +100,21 @@ impl CommitObject {
 }
 
 impl GitObjectAttributes for CommitObject {
+    /// Makes a commit object from a filesystem git object
+    /// ```
+    /// # use crate::objects::CommitObject;
+    /// # use crate::repo::Repo;
+    /// # use anyhow::Result;
+    /// # fn main() -> Result<()> {
+    /// # let repo = Repo::from_path(&PathBuf::from_str(".")?)?;
+    /// # let commit_hash = GitObject::from_index(&repo, &repo.get_branch_index("main")?)?;
+    /// /* get some commit hash */
+    /// let obj: CommitObject = *CommitObject::from_git_object(&commit_hash)?;
+    /// # return Ok(());
+    /// # }
+    /// ```
     fn from_git_object(git_object: &GitObject) -> Result<Box<Self>> {
+
         let inner_data = git_object.get_data()?;
         let in_string = String::from_utf8_lossy(&inner_data).to_string();
         let push_string = in_string.splitn(2, "\0").collect::<Vec<&str>>();
