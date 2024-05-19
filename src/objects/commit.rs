@@ -4,7 +4,7 @@ use anyhow::{
     Result,
 };
 
-use crate::object::{
+use crate::objects::{
     GitObject,
     GitObjectAttributes,
 };
@@ -76,8 +76,7 @@ impl CommitObject {
 impl GitObjectAttributes for CommitObject {
     /// Makes a commit object from a filesystem git object
     /// ```
-    /// # use git_stats::object::{GitObject, GitObjectAttributes};
-    /// # use git_stats::objects::commit::CommitObject;
+    /// # use git_stats::objects::{GitObject, GitObjectAttributes, commit::CommitObject};
     /// # use git_stats::Repo;
     /// # use anyhow::Result;
     /// # fn main() -> Result<()> {

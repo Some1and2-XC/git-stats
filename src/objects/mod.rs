@@ -26,7 +26,7 @@ impl std::error::Error for ParseGitObjectError {}
 #[derive(Debug)]
 pub enum GitObjectType {
     /// Commit variant
-    Commit(CommitObject),
+    Commit(commit::CommitObject),
     /// Tree variant
     Tree,
     /// Blob variant
@@ -40,7 +40,7 @@ pub enum GitObjectType {
 /// Trait for every kind of git database object
 pub trait GitObjectAttributes {
     /// Gets an object from a passed git object
-    /// Usage can be found here [`CommitObject::from_git_object`]
+    /// Usage can be found here [`commit::CommitObject::from_git_object`]
     fn from_git_object(git_object: &GitObject) -> Result<Box<Self>>;
 }
 
@@ -104,7 +104,7 @@ impl GitObject {
 
         if git_data_type == "commit" {
             return Ok(GitObjectType::Commit(
-                CommitObject::from_str(&git_data[1])?
+                commit::CommitObject::from_str(&git_data[1])?
             ));
         } else if git_data_type == "tree" {
             // println!("{:?}", git_data);

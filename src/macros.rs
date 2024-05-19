@@ -1,33 +1,37 @@
-/// Macro for continuing on errors
-/// ```
-/// # use anyhow::{Result, anyhow};
-/// # mod git_stats::macros;
-/// use macros::ok_or_continue;
-///
-/// fn divide_one(n: f32) -> Result<f32> {
-///     if n == 0.0 {
-///         return Err(anyhow!("Divide by zero error!"));
-///     } else {
-///         return Ok(1.0 / n);
-///     }
-/// }
-///
-/// let sum = 0.0;
-/// for i in -4..5 {
-///     sum += ok_or_continue!(divide_one(i.into()));
-/// }
-///
-/// assert_eq!(sum, 1.0 / 5.0);
-/// ```
-macro_rules! ok_or_continue {
+#[doc(hidden)] #[macro_export]
+macro_rules! __ok_or_continue {
     ($res:expr) => {
         match $res {
             Ok(v) => v,
             Err(e) => {
-                log::warn!("An error: {}, skipped.", e);
+                log::warn!("An error: {:?}, skipped.", e);
                 continue;
             },
         }
     };
 }
-pub(crate) use ok_or_continue;
+
+/// Macro for continuing on errors
+/// ```
+/// # use std::error::Error;
+/// # use git_stats::macros::ok_or_continue;
+/// // Defines function that could error
+/// fn error_on_even(v: usize) -> Result<usize, ()> {
+///     if v % 2 == 0 {
+///         return Err(());
+///     } else {
+///         return Ok(v);
+///     }
+/// }
+///
+/// // Should add 1 and 3
+/// // and also just ignore the errors
+/// let mut sum = 0;
+/// for i in 0..4 {
+///     sum += ok_or_continue!(error_on_even(i));
+/// }
+///
+/// assert_eq!(sum, 4);
+/// ```
+#[doc(inline)]
+pub use __ok_or_continue as ok_or_continue;

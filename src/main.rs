@@ -8,7 +8,7 @@ use std::{
 use anyhow::Result;
 
 use git_stats::Repo;
-use git_stats::object::{GitObject, GitObjectType};
+use git_stats::objects::{GitObject, GitObjectType};
 
 const GIT_FOLDERNAME: &'static str = ".git";
 
