@@ -1,11 +1,18 @@
-use anyhow::{anyhow, Context,Result};
+use anyhow::{anyhow, Result};
 
 use super::GIT_FOLDERNAME;
 
 use core::fmt;
-use std::{ffi::OsString, fs, path::PathBuf, str::FromStr};
+use std::{
+    ffi::{CString, OsString}, fs,
+    path::PathBuf, str::FromStr,
+};
 
-use crate::objects::{CommitObject, GitObjectAttributes, GitObject};
+use crate::objects::{
+    GitObjectAttributes, GitObject, commit::CommitObject,
+};
+
+use crate::macros::ok_or_continue;
 
 // Defines Repo Parsing Error
 #[derive(Debug, Clone)]
@@ -72,57 +79,30 @@ impl Repo {
             .join("objects")
             ;
 
-        let obj_folder_names = fs::read_dir(objects_path.to_owned())?
-            .filter_map(|v| {
-                match v {
-                    Ok(v) => {
-                        let path = v.path();
+        for folder in fs::read_dir(&objects_path)? {
 
-                        let string_value = path
-                            .file_name()
-                            .unwrap()
-                            .to_string_lossy()
-                            .to_string();
-                        if path.is_dir() && string_value.len() == 2 {
-                            return Some(path);
-                        } else {
-                            return None;
-                        }
+            let checked_folder = ok_or_continue!(folder);
 
-                    },
-                    _ => None,
-                }
-            })
-            .collect::<Vec<PathBuf>>();
+            // Breaks early if it isn't a directory
+            if !checked_folder.path().is_dir() { continue; };
+            if checked_folder.file_name().len() != 2 { continue; };
 
-        let _ = obj_folder_names
-            .iter()
-            .map(|sub_folder| {
-                let sub_folder_name = sub_folder
-                    .file_name()
-                    .unwrap();
-                let files = fs::read_dir(sub_folder)
-                    .unwrap()
-                    .map(|v| {
-                        let path = v
-                            .unwrap()
-                            .path();
-                        let data = fs::read(&path).unwrap();
-                        return GitObject::new(
-                            sub_folder_name.to_owned(),
-                            path.file_name().unwrap().to_owned(),
-                            path,
-                            data,
-                            );
-                    })
-                    .collect::<Vec<GitObject>>()
-                    ;
-                objects.extend(files);
-                return 0;
-            })
-            .collect::<Vec<usize>>()
-            ;
+            for file in ok_or_continue!(fs::read_dir(checked_folder.path())) {
+                let checked_file = ok_or_continue!(file);
 
+                let oid = (checked_folder.file_name().to_string_lossy() +
+                       checked_file.file_name().to_string_lossy()).to_string();
+
+                let data = ok_or_continue!(fs::read(checked_file.path()));
+
+                objects.push(
+                    GitObject::new(
+                        CString::new(oid)?,
+                        data,
+                    )
+                );
+            }
+        }
         return Ok(objects);
     }
 

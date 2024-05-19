@@ -1,6 +1,3 @@
-mod repo;
-mod objects;
-
 use std::{
     str::FromStr,
     env::args_os,
@@ -10,8 +7,8 @@ use std::{
 
 use anyhow::Result;
 
-use crate::repo::Repo;
-use crate::objects::GitObject;
+use git_stats::Repo;
+use git_stats::object::{GitObject, GitObjectType};
 
 const GIT_FOLDERNAME: &'static str = ".git";
 
@@ -38,9 +35,10 @@ fn main() -> Result<()> {
         .map(|v| match v.initialize_from_data() {
                 Ok(obj) => {
                     let _ = match obj {
-                        objects::GitObjectType::Commit(commit) => {
+                        GitObjectType::Commit(commit) => {
                             // println!("Commit: {:?}", commit);
                         },
+                        _ => todo!(),
                     };
                     return 1;},
                 Err(_) => 0,

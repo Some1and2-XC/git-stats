@@ -4,8 +4,8 @@
 //! It gives access to information such as what is included in commits and how large the parsed
 //! files are.
 //! ```
-//! # use crate::git_stats::Repo;
-//! # use crate::git_stats::objects::CommitObject;
+//! # use git_stats::Repo;
+//! # use git_stats::objects::commit::CommitObject;
 //! # fn main() -> anyhow::Result<()> {
 //! let repo = Repo::from_path(".")? // Gets repo object
 //!     .enumerate_branches()?; // Makes repo object aware of its branches
@@ -18,9 +18,11 @@
 /// The object module is for utilities that relate to git objects. This includes the
 /// [`objects::CommitObject`] and more.
 pub mod objects;
+pub mod macros;
 
 mod repo;
 
 pub use crate::repo::Repo;
+
 
 const GIT_FOLDERNAME: &'static str = ".git";
