@@ -1,6 +1,6 @@
-use anyhow::{anyhow, Result};
-
 use super::GIT_FOLDERNAME;
+
+use anyhow::{anyhow, ensure, Result};
 
 use core::fmt;
 use std::{
@@ -9,7 +9,8 @@ use std::{
 };
 
 use crate::objects::{
-    GitObjectAttributes, GitObject, commit::CommitObject,
+    GitObjectAttributes, GitObject,
+    commit::CommitObject,
 };
 
 use crate::macros::ok_or_continue;
@@ -63,13 +64,32 @@ impl Repo {
     pub fn get_commit_from_index(&self, index: &str) -> Result<CommitObject> {
         let git_object = GitObject::from_index(self, index)?;
 
-        let git_data_string = String::from_utf8_lossy(
+        let git_data = String::from_utf8_lossy(
             git_object
                 .get_data()?
                 .as_slice()
-            ).replace("\0", "\n");
+            ).splitn(2, "\0")
+            .map(|v| v.to_string())
+            .collect::<Vec<String>>()
+            ;
 
-        return Ok(CommitObject::from_str(&git_data_string)?);
+        ensure!(git_data.len() == 2, anyhow!("Git Data type isn't of length 2! Data: '{:?}'", git_data));
+
+        let data_size = git_data[0]
+            .split(" ")
+            .nth(1);
+
+        let data_size_int: i32 = match data_size {
+            Some(v) => v.parse()?,
+            None => return Err(anyhow!("Couldn't parse int from {:?}!", data_size)),
+        };
+
+        return Ok(
+            CommitObject::from_str(
+                &git_data[1],
+                data_size_int,
+            )?
+        );
     }
 
     /// Returns a vec of all the git objects in a git directory

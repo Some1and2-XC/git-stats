@@ -1,7 +1,5 @@
 use anyhow::{
-    anyhow,
-    bail,
-    Result,
+    anyhow, bail, ensure, Result
 };
 
 use crate::objects::{
@@ -21,6 +19,8 @@ pub struct CommitObject {
     pub author: String,
     /// The commit's committer string
     pub committer: String,
+    /// The size of the commit object (according to meta data)
+    pub size: i32,
 }
 
 impl CommitObject {
@@ -28,6 +28,7 @@ impl CommitObject {
     /// <section class="warning">
     /// Note raw git files use the <code>\0</code> character to separate metadata from
     /// the actual data so if reading manually, this has to be separated out.
+    /// The size is intended to be read from there
     /// </section>
     ///
     /// ```
@@ -37,11 +38,11 @@ impl CommitObject {
     /// parent some_big_hash
     /// author some_committer
     /// committer some_committer
-    /// ".trim()).unwrap();
+    /// ".trim(), 9999).unwrap();
     /// assert_eq!(commit.tree, "some_big_hash");
     /// assert_eq!(commit.committer, "some_committer");
     /// ```
-    pub fn from_str(in_string: &str) -> Result<Self> {
+    pub fn from_str(in_string: &str, size: i32) -> Result<Self> {
 
         let mut tree: Result<String> = Err(anyhow!("Failed to parse 'tree' from string: '{:?}'.", in_string));
         let mut parent: Result<String> = Err(anyhow!("Failed to parse 'parent' from string: '{:?}'.", in_string));
@@ -68,6 +69,7 @@ impl CommitObject {
             parent: parent?,
             author: author?,
             committer: committer?,
+            size,
         });
     }
 
@@ -92,10 +94,16 @@ impl GitObjectAttributes for CommitObject {
         let inner_data = git_object.get_data()?;
         let in_string = String::from_utf8_lossy(&inner_data).to_string();
         let push_string = in_string.splitn(2, "\0").collect::<Vec<&str>>();
-        if push_string.len() != 2 {
-            bail!(anyhow!("Couldn't find null character in string: '{}'", in_string));
-        }
-        let commit_object = Self::from_str(push_string[1]);
+
+        let data_size = push_string[0].splitn(2, " ").collect::<Vec<&str>>();
+
+        ensure!(data_size.len() == 2, anyhow!("Invalid length of header: '{:?}'", data_size));
+        ensure!(push_string.len() == 2, anyhow!("Couldn't find null character in string: '{:?}'", push_string));
+
+        let commit_object = Self::from_str(
+            push_string[1],
+            data_size[1].parse()?,
+            );
         return Ok(Box::new(commit_object?));
     }
 }

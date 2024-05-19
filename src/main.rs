@@ -17,7 +17,7 @@ fn main() -> Result<()> {
     // Gets the path from input args
     let os_string = args_os()
         .nth(1)
-        .unwrap_or(OsString::from_str(".").unwrap());
+        .unwrap_or(OsString::from_str(".")?);
     let path = PathBuf::from(&os_string);
 
     // Gets the repository path from the files
@@ -36,7 +36,7 @@ fn main() -> Result<()> {
                 Ok(obj) => {
                     let _ = match obj {
                         GitObjectType::Commit(commit) => {
-                            // println!("Commit: {:?}", commit);
+                            println!("Commit: {:?}", commit);
                         },
                         _ => todo!(),
                     };

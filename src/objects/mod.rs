@@ -93,7 +93,6 @@ impl GitObject {
         let git_data_type = git_data_meta[0];
         let git_data_size = git_data_meta[1];
 
-        // println!("Data: {:?}", git_data_type);
         if git_data_type == "tree" {
             println!(
                 "Data: '{:?}' & Diff: '{}'",
@@ -104,7 +103,7 @@ impl GitObject {
 
         if git_data_type == "commit" {
             return Ok(GitObjectType::Commit(
-                commit::CommitObject::from_str(&git_data[1])?
+                commit::CommitObject::from_str(&git_data[1], git_data_size.parse()?)?
             ));
         } else if git_data_type == "tree" {
             // println!("{:?}", git_data);
