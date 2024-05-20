@@ -4,7 +4,7 @@ use anyhow::{anyhow, ensure, Result};
 
 use core::fmt;
 use std::{
-    ffi::{CString, OsString}, fs,
+    ffi::OsString, fs,
     path::PathBuf, str::FromStr,
 };
 
@@ -30,14 +30,16 @@ impl std::error::Error for ParseGitRepoError {}
 /// Struct that represents a repository.
 #[derive(Debug, Clone)]
 pub struct Repo {
+    /// The directory the repo is in.
     pub dir: PathBuf,
-    /// Is None is the branches haven't been searched for yet
-    /// Is Some(\[Branches\]) if is has.
+    /// To use this attribute, using [`Repo::enumerate_branches`] is required.
+    /// Is None is the branches haven't been searched for yet.
+    /// This attribute is type `Some([Branches])` if is has.
     pub branches: Option<Box<[OsString]>>,
 }
 
 impl Repo {
-    /// Constructs a repo object from a path.
+    /// Constructs a repo from a path.
     /// ```
     /// # use crate::git_stats::Repo;
     /// let repo = Repo::from_path(".").unwrap();
@@ -46,7 +48,13 @@ impl Repo {
         return Self::from_pathbuf(&PathBuf::from_str(path)?);
     }
 
-    /// Tries to construct a repo from a path.
+    /// Constructs a repo from a PathBuf object.
+    /// ```
+    /// # use crate::git_stats::Repo;
+    /// # use std::{path::PathBuf, str::FromStr};
+    /// let path = PathBuf::from_str(".").unwrap();
+    /// let repo = Repo::from_pathbuf(&path).unwrap();
+    /// ```
     pub fn from_pathbuf(path: &PathBuf) -> Result<Self> {
 
         let git_path = path.join(GIT_FOLDERNAME);
@@ -61,8 +69,15 @@ impl Repo {
         }
     }
 
-    pub fn get_commit_from_index(&self, index: &str) -> Result<CommitObject> {
-        let git_object = GitObject::from_index(self, index)?;
+    /// Gets a commit object using the oid
+    /// ```
+    /// # use git_stats::Repo;
+    /// # let repo = Repo::from_path(".").unwrap();
+    /// let head: String = repo.get_branch_oid("main").unwrap(); // gets the OID from the main branch
+    /// let commit = repo.get_commit_from_oid(&head).unwrap();
+    /// ```
+    pub fn get_commit_from_oid(&self, index: &str) -> Result<CommitObject> {
+        let git_object = GitObject::from_oid(self, index)?;
 
         let git_data = String::from_utf8_lossy(
             git_object
@@ -117,7 +132,7 @@ impl Repo {
 
                 objects.push(
                     GitObject::new(
-                        CString::new(oid)?,
+                        oid,
                         data,
                     )
                 );
@@ -126,6 +141,26 @@ impl Repo {
         return Ok(objects);
     }
 
+    /// Makes the repo aware of the branches is has
+    /// Returns the original instance
+    /// ```should_panic
+    /// # use anyhow::Result;
+    /// # use std::ffi::OsString;
+    /// # fn main() -> Result<()> {
+    /// # use git_stats::Repo;
+    /// let repo = Repo::from_path(".")?;
+    /// let branches: Box<[OsString]> = repo.branches.unwrap(); // This unwrap throws
+    /// # Ok(()) }
+    /// ```
+    /// ```
+    /// # use git_stats::Repo;
+    /// # use anyhow::Result;
+    /// # use std::ffi::OsString;
+    /// # fn main() -> Result<()> {
+    /// let repo = Repo::from_path(".")?.enumerate_branches()?;
+    /// let branches: Box<[OsString]> = repo.branches.unwrap(); // This unwrap doesn't throw
+    /// # Ok(()) }
+    /// ```
     pub fn enumerate_branches(mut self) -> Result<Self> {
         let path = self.dir.join("refs").join("heads");
         self.branches = Some(
@@ -141,7 +176,17 @@ impl Repo {
         return Ok(self);
     }
 
-    pub fn get_branch_index(&self, branch_name: &str) -> Result<String> {
+    /// Gets a branch from the name of a branch
+    /// ```
+    /// # use git_stats::Repo;
+    /// # use git_stats::objects::GitObject;
+    /// # let repo = Repo::from_path(".").unwrap();
+    /// /* With some repo named 'repo' */
+    /// let branch = repo.get_branch_oid("main").unwrap(); // Gets the oid of the branch
+    /// // A new GitObject can be initialized from this oid
+    /// let git_object = GitObject::from_oid(&repo, &branch).unwrap();
+    /// ```
+    pub fn get_branch_oid(&self, branch_name: &str) -> Result<String> {
         let branch_path = self.dir
             .join("refs")
             .join("heads")
@@ -154,9 +199,15 @@ impl Repo {
         return Ok(out_string.trim().into());
     }
 
+    /// Gets a commit object by branch name
+    /// ```
+    /// # use git_stats::Repo;
+    /// # let repo = Repo::from_path(".").unwrap();
+    /// let head_commit = repo.get_branch("main").unwrap();
+    /// ```
     pub fn get_branch(&self, branch_name: &str) -> Result<CommitObject> {
-        let branch_index = self.get_branch_index(branch_name)?;
-        let git_object = GitObject::from_index(self, &branch_index)?;
+        let branch_index = self.get_branch_oid(branch_name)?;
+        let git_object = GitObject::from_oid(self, &branch_index)?;
         let commit_object = CommitObject::from_git_object(&git_object)?;
         return Ok(*commit_object);
     }

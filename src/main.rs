@@ -10,8 +10,6 @@ use anyhow::Result;
 use git_stats::Repo;
 use git_stats::objects::{GitObject, GitObjectType};
 
-const GIT_FOLDERNAME: &'static str = ".git";
-
 fn main() -> Result<()> {
 
     // Gets the path from input args
@@ -27,7 +25,7 @@ fn main() -> Result<()> {
         ;
 
     let branch = repository.get_branch("main")?;
-    let parent_index = GitObject::from_index(&repository, &branch.parent)?;
+    let _parent_index = GitObject::from_oid(&repository, &branch.parent)?;
 
     let _ = repository
         .get_all_objects()?

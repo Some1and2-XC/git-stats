@@ -1,4 +1,4 @@
-// #![warn(missing_docs)]
+#![warn(missing_docs)]
 
 //! git-stats is a library for parsing git files
 //! It gives access to information such as what is included in commits and how large the parsed
@@ -18,6 +18,9 @@
 /// The object module is for utilities that relate to git objects. This includes the
 /// [`objects::commit::CommitObject`] and more.
 pub mod objects;
+
+/// The macro module is for the macros included in this library. This includes
+/// the [`macros::ok_or_continue`] macro.
 pub mod macros;
 
 mod repo;

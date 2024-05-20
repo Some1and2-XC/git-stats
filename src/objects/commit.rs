@@ -1,11 +1,13 @@
 use anyhow::{
-    anyhow, bail, ensure, Result
+    anyhow, ensure, Result
 };
 
 use crate::objects::{
     GitObject,
     GitObjectAttributes,
 };
+
+use super::get_type_size_and_data;
 
 /// Object that represents a commit
 /// Designed to be initialized using the [`CommitObject::from_str`] function.
@@ -83,7 +85,7 @@ impl GitObjectAttributes for CommitObject {
     /// # use anyhow::Result;
     /// # fn main() -> Result<()> {
     /// # let repo = Repo::from_path(".")?;
-    /// # let some_git_object = GitObject::from_index(&repo, &repo.get_branch_index("main")?)?;
+    /// # let some_git_object = GitObject::from_oid(&repo, &repo.get_branch_oid("main")?)?;
     /// /* get some commit hash */
     /// let obj: CommitObject = *CommitObject::from_git_object(&some_git_object)?;
     /// # return Ok(());
@@ -91,18 +93,14 @@ impl GitObjectAttributes for CommitObject {
     /// ```
     fn from_git_object(git_object: &GitObject) -> Result<Box<Self>> {
 
-        let inner_data = git_object.get_data()?;
-        let in_string = String::from_utf8_lossy(&inner_data).to_string();
-        let push_string = in_string.splitn(2, "\0").collect::<Vec<&str>>();
+        let in_string = git_object.get_data_as_string()?;
+        let (git_data_type, git_data_size, git_data) = get_type_size_and_data(&in_string)?;
 
-        let data_size = push_string[0].splitn(2, " ").collect::<Vec<&str>>();
-
-        ensure!(data_size.len() == 2, anyhow!("Invalid length of header: '{:?}'", data_size));
-        ensure!(push_string.len() == 2, anyhow!("Couldn't find null character in string: '{:?}'", push_string));
+        ensure!(&git_data_type == "commit", anyhow!("Attempted to make commit object out of '{}'", git_data_type));
 
         let commit_object = Self::from_str(
-            push_string[1],
-            data_size[1].parse()?,
+                &String::from_utf8_lossy(&git_data).to_string(),
+                git_data_size
             );
         return Ok(Box::new(commit_object?));
     }
