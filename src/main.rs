@@ -6,9 +6,10 @@ use std::{
 };
 
 use anyhow::Result;
-
+use git_stats::objects::{GitObject, GitObjectAttributes};
 use git_stats::Repo;
-use git_stats::objects::{GitObject, GitObjectType};
+
+use git_stats::objects::commit::CommitObject;
 
 fn main() -> Result<()> {
 
@@ -20,30 +21,15 @@ fn main() -> Result<()> {
 
     // Gets the repository path from the files
     // And enumerates its branches
-    let repository = Repo::from_pathbuf(&path)?
+    let repo = Repo::from_pathbuf(&path)?
         .enumerate_branches()?
         ;
 
-    let branch = repository.get_branch("main")?;
-    let _parent_index = GitObject::from_oid(&repository, &branch.parent)?;
+    let mut branch = repo.get_branch("main")?;
 
-    let _ = repository
-        .get_all_objects()?
-        .iter()
-        .map(|v| match v.initialize_from_data() {
-                Ok(obj) => {
-                    let _ = match obj {
-                        GitObjectType::Commit(commit) => {
-                            println!("Commit: {:?}", commit);
-                        },
-                        _ => todo!(),
-                    };
-                    return 1;},
-                Err(_) => 0,
-        })
-        .collect::<Vec<_>>()
-        ;
-
+    // let git_object = GitObject::from_oid(&repo, &branch.tree)?;
+    // let tree = TreeObject::from_git_object(&git_object)?;
+    // println!("{:?}", tree);
 
     return Ok(());
 }

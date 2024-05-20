@@ -1,6 +1,8 @@
-/// The commit module is mainly for holding the [`commit::CommitObject`] struct.
-/// This may also include helpful commit utilities.
+/// The commit module is for holding the [`commit::CommitObject`] struct.
 pub mod commit;
+
+/// The tree module is for holding the [`tree::TreeObject`] struct.
+pub mod tree;
 
 use std::fs;
 use anyhow::{anyhow, ensure, Result};
@@ -120,7 +122,7 @@ impl GitObject {
     ///     _ => panic!(),
     /// };
     /// assert_eq!(commit_obj.size, 999);
-    /// assert_eq!(&commit_obj.parent, "some_hash");
+    /// assert_eq!(&commit_obj.parent.unwrap(), "some_hash");
     /// assert_eq!(&commit_obj.author, "some_hash");
     /// assert_eq!(&commit_obj.committer, "some_hash");
     /// ```
@@ -138,7 +140,8 @@ impl GitObject {
         );
     }
 
-    /// Initializes a some git object variant from data
+    /// Initializes a some git object variant from data.
+    /// Uses [`GitObject::new_dummy_commit`] for its dummy data.
     /// ```
     /// # use git_stats::objects::{GitObject, GitObjectType};
     /// let git_object = GitObject::new_dummy_commit();
@@ -147,7 +150,7 @@ impl GitObject {
     ///     _ => panic!(),
     /// };
     /// assert_eq!(commit.size, 999);
-    /// assert_eq!(&commit.parent, "some_hash");
+    /// assert_eq!(&commit.parent.unwrap(), "some_hash");
     /// ```
     /// This example also shows the data that is being used.
     /// The `compress_to_vec_zlib()` function is from [`miniz_oxide::deflate::compress_to_vec_zlib`].
@@ -171,7 +174,7 @@ impl GitObject {
     ///     _ => panic!("This should be a commit!"),
     /// };
     /// assert_eq!(commit.size, 999);
-    /// assert_eq!(&commit.parent, "some_hash");
+    /// assert_eq!(&commit.parent.unwrap(), "some_hash");
     /// ```
     pub fn initialize_from_data(&self) -> Result<GitObjectType> {
 

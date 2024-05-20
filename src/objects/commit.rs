@@ -2,7 +2,7 @@ use anyhow::{
     anyhow, ensure, Result
 };
 
-use crate::objects::{
+use super::{
     GitObject,
     GitObjectAttributes,
 };
@@ -16,7 +16,7 @@ pub struct CommitObject {
     /// The hash that points to the commits tree object
     pub tree: String,
     /// The hash that points to the previous commit object
-    pub parent: String,
+    pub parent: Option<String>,
     /// The commit's author string
     pub author: String,
     /// The commit's committer string
@@ -47,7 +47,7 @@ impl CommitObject {
     pub fn from_str(in_string: &str, size: i32) -> Result<Self> {
 
         let mut tree: Result<String> = Err(anyhow!("Failed to parse 'tree' from string: '{:?}'.", in_string));
-        let mut parent: Result<String> = Err(anyhow!("Failed to parse 'parent' from string: '{:?}'.", in_string));
+        let mut parent: Option<String> = None;
         let mut author: Result<String> = Err(anyhow!("Failed to parse 'author' from string: '{:?}'.", in_string));
         let mut committer: Result<String> = Err(anyhow!("Failed to parse 'committer' from string: '{:?}'.", in_string));
 
@@ -57,7 +57,7 @@ impl CommitObject {
                 if v[0] == "tree" {
                     tree = Ok(v[1].to_owned());
                 } else if v[0] == "parent" {
-                    parent = Ok(v[1].to_owned());
+                    parent = Some(v[1].to_owned());
                 } else if v[0] == "author" {
                     author = Ok(v[1].to_owned());
                 } else if v[0] == "committer" {
@@ -68,13 +68,12 @@ impl CommitObject {
 
         return Ok(Self {
             tree: tree?,
-            parent: parent?,
+            parent,
             author: author?,
             committer: committer?,
             size,
         });
     }
-
 }
 
 impl GitObjectAttributes for CommitObject {
