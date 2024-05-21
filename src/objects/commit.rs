@@ -2,6 +2,8 @@ use anyhow::{
     anyhow, ensure, Result
 };
 
+use crate::Repo;
+
 use super::{
     GitObject,
     GitObjectAttributes,
@@ -73,6 +75,21 @@ impl CommitObject {
             committer: committer?,
             size,
         });
+    }
+
+    /// Creates commit object from oid and repo
+    /// ```
+    /// # use git_stats::objects::commit::CommitObject;
+    /// # use git_stats::Repo;
+    /// let repo = Repo::from_path(".").unwrap();
+    /// let commit_oid = repo.get_branch_oid("main").unwrap();
+    /// let commit = CommitObject::from_oid(&repo, &commit_oid).unwrap();
+    /// ```
+    pub fn from_oid(repo: &Repo, oid: &str) -> Result<Self> {
+        return Ok(
+            *Self::from_git_object(
+                &GitObject::from_oid(repo, oid)?
+        )?);
     }
 }
 

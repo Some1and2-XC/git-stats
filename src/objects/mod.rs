@@ -32,7 +32,7 @@ pub fn get_type_size_and_data(in_str: &str) -> Result<(String, i32, Vec<u8>)> {
         in_str,
     ));
 
-    let git_data: Vec<u8> = split_data[1].bytes().collect::<Vec<u8>>();
+    let git_data: Vec<u8> = split_data[1].bytes().collect();
 
     // Gets meta segment
     let meta = split_data[0]
