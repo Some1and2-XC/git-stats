@@ -7,9 +7,8 @@ use crate::Repo;
 use super::{
     GitObject,
     GitObjectAttributes,
+    get_type_size_and_data,
 };
-
-use super::get_type_size_and_data;
 
 /// Object that represents a commit
 /// Designed to be initialized using the [`CommitObject::from_str`] function.

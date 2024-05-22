@@ -4,6 +4,9 @@ pub mod commit;
 /// The tree module is for holding the [`tree::TreeObject`] struct.
 pub mod tree;
 
+/// The blob module is for holding the [`blob::BlobObject`] struct.
+pub mod blob;
+
 use std::fs;
 use anyhow::{anyhow, ensure, Result};
 
@@ -58,13 +61,15 @@ pub enum GitObjectType {
     /// Commit variant
     Commit(commit::CommitObject),
     /// Tree variant
-    Tree,
+    Tree(tree::TreeObject),
     /// Blob variant
-    Blob,
+    Blob(blob::BlobObject),
+    /*
     /// Executable blob variant
     BlobExecutable,
     /// Link variant
     Link,
+    */
 }
 
 /// Trait for every kind of git database object
@@ -179,18 +184,20 @@ impl GitObject {
     pub fn initialize_from_data(&self) -> Result<GitObjectType> {
 
         let string_data = self.get_data_as_string()?;
-        let (git_data_type, git_data_size, git_data) = get_type_size_and_data(&string_data)?;
+        let (git_data_type, _, _) = get_type_size_and_data(&string_data)?;
 
         if git_data_type == "commit" {
             return Ok(GitObjectType::Commit(
-                commit::CommitObject::from_str(&String::from_utf8_lossy(&git_data).to_string(), git_data_size)?
+                *commit::CommitObject::from_git_object(self)?
             ));
         } else if git_data_type == "tree" {
-            // println!("{:?}", git_data);
-            return Err(anyhow!("Not implemented yet!"));
+            return Ok(GitObjectType::Tree(
+                *tree::TreeObject::from_git_object(self)?
+            ));
         } else if git_data_type == "blob" {
-            // println!("{:?}", git_data);
-            return Err(anyhow!("Not implemented yet!"));
+            return Ok(GitObjectType::Blob(
+                *blob::BlobObject::from_git_object(self)?
+            ));
         } else {
             return Err(anyhow!("Git Datatype: '{}' not found!", git_data_type));
         }

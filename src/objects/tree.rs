@@ -5,9 +5,6 @@ use super::{
     get_type_size_and_data,
 };
 
-use crate::macros::ok_or_continue;
-
-
 /// Object that represents a Tree
 /// Designed to be initialized using the [`TreeObject::from_git_object`] function.
 #[derive(Debug, Clone)]
@@ -19,6 +16,9 @@ pub struct TreeObject {
 }
 
 impl TreeObject {
+    /// Creates a new trew object.
+    /// Uses the size given in metadata and a vec of tree items.
+    /// Generally [`TreeObject::from_git_object`] is the constructor that should be used.
     pub fn new(items: Vec<TreeItem>, size: i32) -> Self {
         return Self {
             items,
@@ -37,14 +37,16 @@ pub struct TreeItem {
     /// 100755: executable
     /// 120000: symlink
     /// 160000: gitlink
-    mode: i32,
+    pub mode: i32,
     /// The name of the folder the tree item refers to
-    filename: String,
+    pub filename: String,
     /// The OID that points to the data the tree item refers to
-    oid: String,
+    pub oid: String,
 }
 
 impl TreeItem {
+    /// Creates a new tree item.
+    /// Generally for internal use only.
     pub fn new(mode: i32, filename: String, oid: String) -> Self {
         return Self {
             mode,
@@ -54,8 +56,16 @@ impl TreeItem {
     }
 }
 
+/// Gets a number, a file name and data out of a source string.
+/// ```
+/// # use git_stats::objects::tree::get_number_filename_and_data;
+/// let in_data = "999 filename\0some_data";
+/// let (out_num, out_filename, out_data) = get_number_filename_and_data(in_data).unwrap();
+/// assert_eq!(out_num, 999);
+/// assert_eq!(&out_filename, "filename");
+/// assert_eq!(out_data, "some_data".bytes().collect::<Vec<u8>>());
+/// ```
 pub fn get_number_filename_and_data(in_str: &str) -> Result<(i32, String, Vec<u8>)> {
-
     let split_data = in_str
         .splitn(2, "\0")
         .map(|v| v)
@@ -90,11 +100,7 @@ impl GitObjectAttributes for TreeObject {
     fn from_git_object(git_object: &super::GitObject) -> Result<Box<Self>> {
 
         let in_data = git_object.get_data()?;
-        let (obj_type, obj_size, _) = get_type_size_and_data(&git_object.get_data_as_string()?)?;
-
-        assert_eq!(obj_type, "tree");
-
-        println!("{:?}", in_data);
+        let (_, obj_size, _) = get_type_size_and_data(&git_object.get_data_as_string()?)?;
 
         // Initializes Variables
         let re = Regex::new(r"(?<mode>1?[0-7]{5}) (?<filename>.+?)\x00(?<data>(?-u:.){20})").unwrap();
