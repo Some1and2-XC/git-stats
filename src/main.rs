@@ -25,7 +25,7 @@ fn main() -> Result<()> {
         .enumerate_branches()?
         ;
 
-    let mut branch = repo.get_branch("main")?;
+    let branch = repo.get_branch("main")?;
 
     println!("{:?}", &branch.tree);
     let git_object = GitObject::from_oid(&repo, &branch.tree)?;

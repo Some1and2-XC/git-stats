@@ -1,5 +1,5 @@
 use anyhow::{anyhow, ensure, Result};
-use fancy_regex::Regex;
+use regex::bytes::Regex;
 use super::{
     GitObjectAttributes,
     get_type_size_and_data,
@@ -7,16 +7,50 @@ use super::{
 
 use crate::macros::ok_or_continue;
 
-// mode: 100644 for a regular file, 100755 executable; 040000: tree; 120000: symlink; 160000: gitlink
 
-/// Object that represents a commit
-/// Designed to be initialized using the [`CommitObject::from_str`] function.
+/// Object that represents a Tree
+/// Designed to be initialized using the [`TreeObject::from_git_object`] function.
 #[derive(Debug, Clone)]
-pub struct TreeObject {}
+pub struct TreeObject {
+    /// A list of the items the tree has
+    pub items: Vec<TreeItem>,
+    /// The size of the tree object (according to meta data)
+    pub size: i32,
+}
 
 impl TreeObject {
-    fn new() -> Self {
-        return Self {};
+    pub fn new(items: Vec<TreeItem>, size: i32) -> Self {
+        return Self {
+            items,
+            size,
+        };
+    }
+}
+
+/// Object that represents an item in a tree.
+#[derive(Debug, Clone)]
+pub struct TreeItem {
+    /// The type of item the file is
+    /// The control bits are similar to linux fs
+    /// 040000: tree
+    /// 100644: for a regular file
+    /// 100755: executable
+    /// 120000: symlink
+    /// 160000: gitlink
+    mode: i32,
+    /// The name of the folder the tree item refers to
+    filename: String,
+    /// The OID that points to the data the tree item refers to
+    oid: String,
+}
+
+impl TreeItem {
+    pub fn new(mode: i32, filename: String, oid: String) -> Self {
+        return Self {
+            mode,
+            filename,
+            oid,
+        };
     }
 }
 
@@ -55,39 +89,46 @@ pub fn get_number_filename_and_data(in_str: &str) -> Result<(i32, String, Vec<u8
 impl GitObjectAttributes for TreeObject {
     fn from_git_object(git_object: &super::GitObject) -> Result<Box<Self>> {
 
+        let in_data = git_object.get_data()?;
+        let (obj_type, obj_size, _) = get_type_size_and_data(&git_object.get_data_as_string()?)?;
+
+        assert_eq!(obj_type, "tree");
+
+        println!("{:?}", in_data);
+
         // Initializes Variables
-        let data = git_object.get_data_as_string()?;
-        let (obj_type, obj_size, obj_data) = get_type_size_and_data(&data)?;
+        let re = Regex::new(r"(?<mode>1?[0-7]{5}) (?<filename>.+?)\x00(?<data>(?-u:.){20})").unwrap();
 
-        let string_data = String::from_utf8_lossy(&obj_data);
-
-        // let re = Regex::new("[0-7]{5,6} .+?\0.{20}")?;
-        let re = Regex::new("[\\d]{5,6} .+?\0.+?(?=[\\d]{5,6}|$)")?;
-        let results: Vec<(i32, String, Vec<u8>)> = re
-            .find_iter(&string_data)
+        let results: Vec<TreeItem> = re
+            .captures_iter(&in_data)
             .map(|v| {
-                let new_v = v.unwrap().as_str();
-                println!("{:?}", new_v.splitn(2, "\0").collect::<Vec<&str>>()[1].bytes().len());
-                let v = get_number_filename_and_data(
-                    new_v
-                    ).unwrap();
-                println!("{:?}", v);
-                return v;
+                // This method uses unwraps because if the following values can't be decoded,
+                // that means some logic is critically incorrect (should never happen at all.)
+                let (_, value_bytes): (_, [&[u8];3]) = v.extract();
+
+                let number_value: i32 = String::from_utf8(value_bytes[0].to_vec())
+                    .unwrap()
+                    .parse()
+                    .unwrap();
+
+                let filename = String::from_utf8(value_bytes[1].to_vec()).unwrap();
+
+                let oid = value_bytes[2]
+                    .iter()
+                    .map(|v| format!("{:02x}", v))
+                    .collect::<Vec<String>>()
+                    .join("")
+                    ;
+
+                return TreeItem::new(
+                    number_value,
+                    filename,
+                    oid
+                );
             })
             .collect()
             ;
 
-        let misc_vec_of_vecs: Vec<&Vec<u8>> = results.iter()
-            .map(|v| {
-                let (_, _, vector) = v;
-                for entry in vector {
-                    print!("{:x}", entry);
-                }
-                println!(" - {:?}", String::from_utf8_lossy(vector));
-                return vector;
-            })
-            .collect();
-
-        return Ok(Box::new(Self::new()));
+        return Ok(Box::new(Self::new(results, obj_size)));
     }
 }
