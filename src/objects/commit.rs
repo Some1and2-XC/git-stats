@@ -47,11 +47,13 @@ impl CommitObject {
     /// let commit = CommitObject::from_str("
     /// tree some_big_hash
     /// parent some_big_hash
-    /// author some_committer
-    /// committer some_committer
+    /// author MT <some@email.tld> 999999 -0123
+    /// committer MT <some@email.tld> 999999 -0123
+    ///
+    /// Some message
     /// ".trim(), 9999, "some_sha1_hash".into()).unwrap();
     /// assert_eq!(commit.tree, "some_big_hash");
-    /// assert_eq!(commit.committer, "some_committer");
+    /// assert_eq!(commit.committer.name, "MT");
     /// ```
     pub fn from_str(in_string: &str, size: i32, oid: String) -> Result<Self> {
 
@@ -62,14 +64,17 @@ impl CommitObject {
         println!("{in_string}");
 
         let re = Regex::new(&[
-            r"tree (?<tree>[0-9a-f]+?)\n",
-            r"(parent (?<parent>[0-9a-f]+?)\n)?",
+            r"tree (?<tree>.+?)\n",
+            r"(parent (?<parent>.+?)\n)?",
             r"author (?<author>.+?)\n",
             r"committer (?<committer>.+?)\n",
             r"\n(?<message>.+)",
         ].join("")).unwrap();
 
-        let capture = re.captures(in_string).with_context(|| format!("Failed to parse commit file: '{oid}'!"))?;
+        let capture = match re.captures(in_string) {
+            Some(v) => v,
+            None => return Err(anyhow!("Failed to parse commit from object: '{}'.", oid)),
+        };
 
         let tree = get_utf8_from_match_group(&capture, "tree");
         let parent = match &capture.name("parent") {
@@ -167,9 +172,9 @@ impl CommitAuthor {
     /// ```
     /// # use git_stats::objects::commit::CommitAuthor;
     /// let in_string = "MT <some@email.tld> 999999 -0123";
-    /// let author = CommitAuthor::from_string(in_string);
+    /// let author = CommitAuthor::from_string(in_string).unwrap();
     /// assert_eq!(author.name, "MT");
-    /// assert_eq!(author.email, "some@email.tld");
+    /// assert_eq!(author.email.unwrap(), "some@email.tld");
     /// assert_eq!(author.timestamp, 999999);
     /// assert_eq!(author.kind, "0123");
     /// ```
@@ -181,7 +186,10 @@ impl CommitAuthor {
             r"-(?<kind>\d{4})",
         ].join("")).unwrap();
 
-        let capture = re.captures(in_str).with_context(|| format!("Failed to parse author from '{in_str}'!"))?;
+        let capture = match re.captures(in_str) {
+            Some(v) => v,
+            None => return Err(anyhow!("Failed to parse author from string: '{}'.", in_str)),
+        };
 
         let email = match capture.name("email") {
             Some(v) => Some(v.as_str().to_string()),

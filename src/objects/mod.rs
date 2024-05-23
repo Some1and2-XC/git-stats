@@ -132,15 +132,17 @@ impl GitObject {
     /// };
     /// assert_eq!(commit_obj.size, 999);
     /// assert_eq!(&commit_obj.parent.unwrap(), "some_hash");
-    /// assert_eq!(&commit_obj.author, "some_hash");
-    /// assert_eq!(&commit_obj.committer, "some_hash");
+    /// assert_eq!(&commit_obj.author.name, "MT");
+    /// assert_eq!(&commit_obj.committer.email.unwrap(), "some@email.tld");
     /// ```
     pub fn new_dummy_commit() -> Self {
         let some_commit = vec![
             "commit 999\0tree some_hash",
             "parent some_hash",
-            "author some_hash",
-            "committer some_hash",
+            "author MT <some@email.tld> 999999 -0123",
+            "committer MT <some@email.tld> 999999 -0123",
+            "",
+            "Some message",
         ].join("\n");
 
         return GitObject::new(
@@ -169,8 +171,10 @@ impl GitObject {
     /// let some_commit = "
     /// commit 999\0tree some_hash
     /// parent some_hash
-    /// author some_hash
-    /// committer some_hash
+    /// author MT <some@email.tld> 999999 -0123
+    /// committer MT <some@email.tld> 999999 -0123
+    ///
+    /// Some message
     /// ".trim();
     ///
     /// let git_object = GitObject::new(
