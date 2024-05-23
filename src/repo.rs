@@ -103,6 +103,7 @@ impl Repo {
             CommitObject::from_str(
                 &git_data[1],
                 data_size_int,
+                git_object.oid.to_owned(),
             )?
         );
     }

@@ -1,3 +1,5 @@
+use std::{borrow::Cow, collections::HashMap};
+
 use anyhow::{
     anyhow, ensure, Result
 };
@@ -5,9 +7,9 @@ use anyhow::{
 use crate::Repo;
 
 use super::{
-    GitObject,
-    GitObjectAttributes,
-    get_type_size_and_data,
+    blob::BlobObject,
+    tree::TreeObject,
+    get_type_size_and_data, GitObject, GitObjectAttributes, GitObjectType
 };
 
 /// Object that represents a commit
@@ -24,6 +26,8 @@ pub struct CommitObject {
     pub committer: String,
     /// The size of the commit object (according to meta data)
     pub size: i32,
+    /// The oid of the commit object (according to meta data.)
+    pub oid: String,
 }
 
 impl CommitObject {
@@ -45,7 +49,7 @@ impl CommitObject {
     /// assert_eq!(commit.tree, "some_big_hash");
     /// assert_eq!(commit.committer, "some_committer");
     /// ```
-    pub fn from_str(in_string: &str, size: i32) -> Result<Self> {
+    pub fn from_str(in_string: &str, size: i32, oid: String) -> Result<Self> {
 
         let mut tree: Result<String> = Err(anyhow!("Failed to parse 'tree' from string: '{:?}'.", in_string));
         let mut parent: Option<String> = None;
@@ -73,6 +77,7 @@ impl CommitObject {
             author: author?,
             committer: committer?,
             size,
+            oid,
         });
     }
 
@@ -89,6 +94,11 @@ impl CommitObject {
             *Self::from_git_object(
                 &GitObject::from_oid(repo, oid)?
         )?);
+    }
+
+    /// Creates a tree from the repos tree attribute.
+    pub fn get_tree(&self, repo: &Repo) -> Result<TreeObject> {
+        return TreeObject::from_oid(repo, &self.tree);
     }
 }
 
@@ -114,9 +124,14 @@ impl GitObjectAttributes for CommitObject {
         ensure!(&git_data_type == "commit", anyhow!("Attempted to make commit object out of '{}'", git_data_type));
 
         let commit_object = Self::from_str(
-                &String::from_utf8_lossy(&git_data).to_string(),
-                git_data_size
-            );
-        return Ok(Box::new(commit_object?));
+            &String::from_utf8_lossy(&git_data).to_string(),
+            git_data_size,
+            git_object.oid.to_owned(),
+        )?;
+        return Ok(Box::new(commit_object));
+    }
+
+    fn get_oid(&self) -> Cow<str> {
+        return (&self.oid).into();
     }
 }

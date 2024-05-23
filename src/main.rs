@@ -1,5 +1,7 @@
 #![allow(unused_imports)]
 
+use std::borrow::Cow;
+use std::collections::HashMap;
 use std::{
     str::FromStr,
     env::args_os,
@@ -7,7 +9,7 @@ use std::{
     path::PathBuf,
 };
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use git_stats::objects::blob::BlobObject;
 use git_stats::objects::commit::CommitObject;
 use git_stats::objects::GitObjectType;
@@ -15,30 +17,6 @@ use git_stats::objects::{GitObject, GitObjectAttributes};
 use git_stats::Repo;
 use git_stats::macros::ok_or_continue;
 use git_stats::objects::tree::TreeObject;
-
-fn recurse_get_values(repo: &Repo, git_object: &GitObject) -> Vec<GitObjectType> {
-    let new_obj = match git_object.initialize_from_data().unwrap() {
-        GitObjectType::Commit(v) => recurse_get_values(repo, &GitObject::from_oid(repo, &v.tree).unwrap()),
-        GitObjectType::Blob(v) => vec![GitObjectType::Blob(v)],
-        GitObjectType::Tree(v) => {
-            println!("{:?}", v);
-            let values = v.items.iter()
-                .map(|item| {
-                    return recurse_get_values(repo, &GitObject::from_oid(repo, &item.oid).unwrap());
-                })
-                .collect::<Vec<Vec<GitObjectType>>>();
-            let mut new_array: Vec<GitObjectType> = vec![];
-            for arr in values {
-                for element in arr {
-                    new_array.push(element);
-                }
-            }
-            return new_array;
-        },
-    };
-
-    return new_obj;
-}
 
 fn main() -> Result<()> {
 
@@ -54,10 +32,15 @@ fn main() -> Result<()> {
         .enumerate_branches()?
         ;
 
-    let branch = repo.get_branch_oid("main")?;
-
-    let values = recurse_get_values(&repo, &GitObject::from_oid(&repo, &branch).unwrap());
+    let branch = repo.get_branch("main").unwrap();
+    let tree = branch.get_tree(&repo).unwrap();
+    let values = tree.recurs_create_tree(&repo, "");
     println!("{}", values.len());
+
+    for (filename, value) in values.iter() {
+        println!("{} {}", filename, value.line_amnt());
+    }
+
     /*
     for value in values {
         match value {

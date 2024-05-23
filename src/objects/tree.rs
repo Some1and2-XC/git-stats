@@ -1,8 +1,12 @@
+use std::{borrow::Cow, collections::HashMap};
+
 use anyhow::{anyhow, ensure, Result};
 use regex::bytes::Regex;
+use crate::objects::GitObject;
+use crate::Repo;
+
 use super::{
-    GitObjectAttributes,
-    get_type_size_and_data,
+    blob::BlobObject, get_type_size_and_data, GitObjectAttributes, GitObjectType
 };
 
 /// Object that represents a Tree
@@ -11,19 +15,60 @@ use super::{
 pub struct TreeObject {
     /// A list of the items the tree has
     pub items: Vec<TreeItem>,
-    /// The size of the tree object (according to meta data)
+    /// The size of the tree object (according to meta data.)
     pub size: i32,
+    /// The oid of the tree object (according to meta data.)
+    pub oid: String,
 }
 
 impl TreeObject {
     /// Creates a new trew object.
     /// Uses the size given in metadata and a vec of tree items.
     /// Generally [`TreeObject::from_git_object`] is the constructor that should be used.
-    pub fn new(items: Vec<TreeItem>, size: i32) -> Self {
+    pub fn new(items: Vec<TreeItem>, size: i32, oid: String) -> Self {
         return Self {
             items,
             size,
+            oid,
         };
+    }
+
+    /// Creates a new tree object from oid.
+    pub fn from_oid(repo: &Repo, oid: &str) -> Result<Self> {
+        let git_object = GitObject::from_oid(repo, oid)?;
+        return Ok(*TreeObject::from_git_object(&git_object)?);
+    }
+
+    /// Creates a file system from from tree object.
+    /// `path` is the path to the root of the tree.
+    /// Usually a good value for this is nothing (`""`).
+    pub fn recurs_create_tree(&self, repo: &Repo, path: &str) -> HashMap<String, BlobObject> {
+
+        let mut fs_map: HashMap<String, BlobObject> = HashMap::new();
+
+        for item in &self.items {
+            let filename: String;
+            if path == "" {
+                filename = item.filename.clone();
+            } else {
+                filename = format!("{}/{}", path, item.filename);
+            }
+            let _ = match GitObject::from_oid(repo, &item.oid).unwrap().initialize_from_data().unwrap() {
+                GitObjectType::Commit(_) => panic!("Commit found in object tree!"),
+                GitObjectType::Blob(v) => {
+                    match fs_map.insert(filename, v) {
+                        Some(_colision_value) => panic!(),
+                        None => (),
+                    }
+                },
+                GitObjectType::Tree(v) => {
+                    fs_map.extend(v.recurs_create_tree(repo, &filename));
+                    ()
+                },
+            };
+        }
+
+        return fs_map;
     }
 }
 
@@ -129,12 +174,20 @@ impl GitObjectAttributes for TreeObject {
                 return TreeItem::new(
                     number_value,
                     filename,
-                    oid
+                    oid,
                 );
             })
             .collect()
             ;
 
-        return Ok(Box::new(Self::new(results, obj_size)));
+        return Ok(Box::new(Self::new(
+            results,
+            obj_size,
+            git_object.oid.to_owned()
+        )));
+    }
+
+    fn get_oid(&self) -> Cow<str> {
+        return (&self.oid).into();
     }
 }

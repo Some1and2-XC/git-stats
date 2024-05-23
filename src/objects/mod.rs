@@ -7,7 +7,7 @@ pub mod tree;
 /// The blob module is for holding the [`blob::BlobObject`] struct.
 pub mod blob;
 
-use std::fs;
+use std::{borrow::Cow, fs};
 use anyhow::{anyhow, ensure, Result};
 
 use crate::repo::Repo;
@@ -74,9 +74,13 @@ pub enum GitObjectType {
 
 /// Trait for every kind of git database object
 pub trait GitObjectAttributes {
-    /// Gets an object from a passed git object
+    /// Gets an object from a passed git object.
     /// Usage can be found here [`commit::CommitObject::from_git_object`]
     fn from_git_object(git_object: &GitObject) -> Result<Box<Self>>;
+
+    /// Gets the oid of an object.
+    /// Must be the oid parsed from meta, not calculated.
+    fn get_oid(&self) -> Cow<str>;
 }
 
 
