@@ -1,2 +1,2 @@
 # git-stats
-A draft utility for getting git repo statistics
+A utility for working with raw git files.
