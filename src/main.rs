@@ -113,11 +113,11 @@ fn main() -> Result<()> {
 
     fn get_time(mut n: f32) -> String{
         if n < 60.0 {
-            return format!("{n:.2}s");
+            return format!("{n:.0}S");
         }
         n /= 60.0;
         if n < 60.0 {
-            return format!("{n:.2}m");
+            return format!("{n:.2}M");
         }
         n /= 60.0;
         if n < 24.0 {
@@ -131,7 +131,7 @@ fn main() -> Result<()> {
         .iter()
         .map(|v| {
             for entry in v {
-                println!("{} {}", get_time(entry.0[2] as f32), entry.1.message.trim());
+                println!("{} {} ({})", get_time(entry.0[2] as f32), entry.1.message.trim(), entry.1.committer.timestamp);
             }
             println!("\t[END OF GROUP]\n");
 
