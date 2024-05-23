@@ -42,14 +42,5 @@ fn main() -> Result<()> {
         println!("{} {}", filename, value.line_amnt());
     }
 
-    /*
-    for value in values {
-        match value {
-            GitObjectType::Blob(v) => println!("{}", v),
-            _ => println!("WARNING, NOT FOUND!"),
-        }
-    }
-    */
-
     return Ok(());
 }

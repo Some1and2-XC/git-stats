@@ -61,8 +61,6 @@ impl CommitObject {
             return capture.name(name).unwrap().as_str().into();
         }
 
-        println!("{in_string}");
-
         let re = Regex::new(&[
             r"tree (?<tree>.+?)\n",
             r"(parent (?<parent>.+?)\n)?",
