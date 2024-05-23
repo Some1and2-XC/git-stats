@@ -30,7 +30,7 @@ impl BlobObject {
     /// Creates a new BlobObject.
     /// ```
     /// # use git_stats::objects::blob::BlobObject;
-    /// let obj = BlobObject::new(vec![1, 2, 3], 999);
+    /// let obj = BlobObject::new(vec![1, 2, 3], 999, "some_sha1_hash".into());
     /// assert_eq!(obj.size, 999);
     /// assert_eq!(obj.data, vec![1, 2, 3]);
     /// ```

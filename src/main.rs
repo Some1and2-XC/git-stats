@@ -33,6 +33,7 @@ fn main() -> Result<()> {
         ;
 
     let branch = repo.get_branch("main").unwrap();
+    let _ = CommitObject::from_oid(&repo, &branch.parent.clone().unwrap());
     let tree = branch.get_tree(&repo).unwrap();
     let values = tree.recurs_create_tree(&repo, "");
     println!("{}", values.len());
