@@ -1,8 +1,10 @@
-use std::{borrow::Cow, collections::HashMap};
+use std::{borrow::Cow, collections::HashMap, str::FromStr};
 
 use anyhow::{
-    anyhow, ensure, Result
+    anyhow, ensure, Context, Result
 };
+
+use regex::{Captures, Regex};
 
 use crate::Repo;
 
@@ -21,13 +23,15 @@ pub struct CommitObject {
     /// The hash that points to the previous commit object
     pub parent: Option<String>,
     /// The commit's author string
-    pub author: String,
+    pub author: CommitAuthor,
     /// The commit's committer string
-    pub committer: String,
+    pub committer: CommitAuthor,
     /// The size of the commit object (according to meta data)
     pub size: i32,
     /// The oid of the commit object (according to meta data.)
     pub oid: String,
+    /// The message of the commit object.
+    pub message: String,
 }
 
 impl CommitObject {
@@ -45,39 +49,47 @@ impl CommitObject {
     /// parent some_big_hash
     /// author some_committer
     /// committer some_committer
-    /// ".trim(), 9999).unwrap();
+    /// ".trim(), 9999, "some_sha1_hash".into()).unwrap();
     /// assert_eq!(commit.tree, "some_big_hash");
     /// assert_eq!(commit.committer, "some_committer");
     /// ```
     pub fn from_str(in_string: &str, size: i32, oid: String) -> Result<Self> {
 
-        let mut tree: Result<String> = Err(anyhow!("Failed to parse 'tree' from string: '{:?}'.", in_string));
-        let mut parent: Option<String> = None;
-        let mut author: Result<String> = Err(anyhow!("Failed to parse 'author' from string: '{:?}'.", in_string));
-        let mut committer: Result<String> = Err(anyhow!("Failed to parse 'committer' from string: '{:?}'.", in_string));
-
-        for v in in_string.split("\n") {
-            let v = v.splitn(2, " ").collect::<Box<[&str]>>();
-            if v.len() == 2 {
-                if v[0] == "tree" {
-                    tree = Ok(v[1].to_owned());
-                } else if v[0] == "parent" {
-                    parent = Some(v[1].to_owned());
-                } else if v[0] == "author" {
-                    author = Ok(v[1].to_owned());
-                } else if v[0] == "committer" {
-                    committer = Ok(v[1].to_owned());
-                }
-            }
+        fn get_utf8_from_match_group(capture: &Captures, name: &str) -> String {
+            return capture.name(name).unwrap().as_str().into();
         }
 
+        println!("{in_string}");
+
+        let re = Regex::new(&[
+            r"tree (?<tree>[0-9a-f]+?)\n",
+            r"(parent (?<parent>[0-9a-f]+?)\n)?",
+            r"author (?<author>.+?)\n",
+            r"committer (?<committer>.+?)\n",
+            r"\n(?<message>.+)",
+        ].join("")).unwrap();
+
+        let capture = re.captures(in_string).with_context(|| format!("Failed to parse commit file: '{oid}'!"))?;
+
+        let tree = get_utf8_from_match_group(&capture, "tree");
+        let parent = match &capture.name("parent") {
+            Some(v) => Some(v.as_str().to_string()),
+            None => None,
+        };
+        let author = CommitAuthor::from_string(
+            &get_utf8_from_match_group(&capture, "author"))?;
+        let committer = CommitAuthor::from_string(
+            &get_utf8_from_match_group(&capture, "committer"))?;
+        let message = get_utf8_from_match_group(&capture, "message");
+
         return Ok(Self {
-            tree: tree?,
+            tree,
             parent,
-            author: author?,
-            committer: committer?,
+            author,
+            committer,
             size,
             oid,
+            message,
         });
     }
 
@@ -133,5 +145,54 @@ impl GitObjectAttributes for CommitObject {
 
     fn get_oid(&self) -> Cow<str> {
         return (&self.oid).into();
+    }
+}
+
+/// Struct that repesents the author of a commit or the committer.
+#[derive(Clone, Debug)]
+pub struct CommitAuthor {
+    /// This is the same name as shown in github.
+    pub name: String,
+    /// This is the email of the committer.
+    /// This is an option as this is sometimes not included.
+    pub email: Option<String>,
+    /// This is the timestamp of the commit.
+    pub timestamp: u64,
+    /// This is the flag that represents the kind.
+    pub kind: String,
+}
+
+impl CommitAuthor {
+    /// Initializes the CommitAuthor
+    /// ```
+    /// # use git_stats::objects::commit::CommitAuthor;
+    /// let in_string = "MT <some@email.tld> 999999 -0123";
+    /// let author = CommitAuthor::from_string(in_string);
+    /// assert_eq!(author.name, "MT");
+    /// assert_eq!(author.email, "some@email.tld");
+    /// assert_eq!(author.timestamp, 999999);
+    /// assert_eq!(author.kind, "0123");
+    /// ```
+    pub fn from_string(in_str: &str) -> Result<Self> {
+        let re = Regex::new(&[
+            r"(?<name>.+?) ",
+            r"(<(?<email>.+?)> )?",
+            r"(?<timestamp>\d+?) ",
+            r"-(?<kind>\d{4})",
+        ].join("")).unwrap();
+
+        let capture = re.captures(in_str).with_context(|| format!("Failed to parse author from '{in_str}'!"))?;
+
+        let email = match capture.name("email") {
+            Some(v) => Some(v.as_str().to_string()),
+            None => None,
+        };
+
+        return Ok(Self {
+            name: capture.name("name").unwrap().as_str().into(),
+            email,
+            timestamp: capture.name("timestamp").unwrap().as_str().parse().unwrap(),
+            kind: capture.name("kind").unwrap().as_str().into(),
+        });
     }
 }
