@@ -6,24 +6,32 @@ use clap::{
 /// A utility for parsing through git repos
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
-pub struct Args {
+pub struct CliArgs {
     /// The path to the repo
-    #[arg(short, long)]
+    #[clap(short, long)]
     pub path: String,
 
     /// The branch being targeted
-    #[arg(short, long)]
+    #[clap(short, long)]
     pub branch: String,
 
     /// Enable parsing by email
-    #[arg(short, long, default_value=None)]
+    #[clap(short, long, default_value=None)]
     pub email: Option<String>,
 
     /// Enable parsing by committer name
-    #[arg(short, long, default_value=None)]
+    #[clap(short, long, default_value=None)]
     pub committer: Option<String>,
 
     /// The file to write the output to
-    #[arg(short, long, default_value=None)]
+    #[clap(short, long, default_value=None)]
     pub outfile: Option<String>,
+
+    /// Flag as to if this should start a server.
+    #[clap(short, long, action)]
+    pub server: bool,
+
+    /// The directory for the static server files.
+    #[clap(short='D', long, default_value=None)]
+    pub server_directory: Option<String>,
 }

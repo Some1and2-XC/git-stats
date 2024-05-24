@@ -4,7 +4,7 @@ use std::{
     borrow::{
         BorrowMut,
         Cow
-    }, collections::HashMap, env::args_os, ffi::OsString, io, path::PathBuf, str::FromStr
+    }, collections::HashMap, env::args_os, ffi::OsString, io, net::TcpListener, path::PathBuf, str::FromStr
 };
 
 use anyhow::{anyhow, Result};
@@ -25,6 +25,7 @@ use git_stats::{
 };
 
 mod cli;
+mod server;
 
 /// Subtracts the values of tree1 from tree2.
 /// Includes all the hashes from both trees combined.
@@ -63,10 +64,16 @@ fn tree_diff(current_tree: HashMap<String, BlobObject>, old_tree: HashMap<String
     return (lines_removed, lines_added);
 }
 
-fn main() -> Result<()> {
+#[derive(Serialize, Deserialize)]
+struct OutputValue {
+    pub message: String,
+    pub delta_t: u32,
+    pub start: u32,
+    pub end: u32,
+}
 
-    let args = cli::cli::Args::parse();
-
+/// Returns response data from CLI args
+fn get_data(args: &cli::cli::CliArgs) -> Result<Vec<Vec<OutputValue>>> {
     // Gets the path from input args
     let os_string = OsString::from_str(&args.path)?;
     let path = PathBuf::from(&os_string);
@@ -144,14 +151,6 @@ fn main() -> Result<()> {
         .collect()
         ;
 
-    #[derive(Serialize, Deserialize)]
-    struct OutputValue {
-        pub message: String,
-        pub delta_t: u32,
-        pub start: u32,
-        pub end: u32,
-    }
-
     let output: Vec<Vec<OutputValue>> = windowed_values
         .iter()
         .map(|v| {
@@ -165,17 +164,39 @@ fn main() -> Result<()> {
             })
             .collect::<Vec<OutputValue>>();
         }).collect();
+    return Ok(output);
+}
 
-    match &args.outfile {
-        Some(v) => {
-            let file = std::fs::File::create(v).unwrap();
-            let writer = std::io::BufWriter::new(file);
-            serde_json::to_writer(writer, &output).unwrap();
-        },
-        None => {
-            serde_json::to_writer(io::stdout(), &output).unwrap();
-        },
+fn main() -> Result<()> {
+
+    let args = cli::cli::CliArgs::parse();
+
+    if args.server {
+        let interface = "0.0.0.0:8080";
+        let server_directory = args.server_directory.unwrap_or("./static".to_string());
+        println!("Starting Server... on '{interface}' in directory: '{server_directory}'");
+        let listener = TcpListener::bind(interface).unwrap();
+
+        for stream in listener.incoming() {
+            let stream = stream.unwrap();
+            server::handle_connection(stream, &server_directory.trim_end_matches("/"));
+        }
+    } else {
+
+        let output = get_data(&args)?;
+
+        match &args.outfile {
+            Some(v) => {
+                let file = std::fs::File::create(v).unwrap();
+                let writer = std::io::BufWriter::new(file);
+                serde_json::to_writer(writer, &output).unwrap();
+            },
+            None => {
+                serde_json::to_string(&output).unwrap();
+            },
+        }
     }
+
 
     return Ok(());
 }
