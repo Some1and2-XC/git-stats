@@ -10,6 +10,7 @@ use std::{
 use anyhow::{anyhow, Result};
 use clap::Parser;
 use serde::{Serialize, Deserialize};
+use chrono::prelude::{DateTime, Utc};
 
 use git_stats::{
     objects::{
@@ -66,10 +67,10 @@ fn tree_diff(current_tree: HashMap<String, BlobObject>, old_tree: HashMap<String
 
 #[derive(Serialize, Deserialize)]
 struct OutputValue {
-    pub message: String,
+    pub title: String,
     pub delta_t: u32,
-    pub start: u32,
-    pub end: u32,
+    pub start: String,
+    pub end: String,
 }
 
 /// Returns response data from CLI args
@@ -156,10 +157,10 @@ fn get_data(args: &cli::cli::CliArgs) -> Result<Vec<Vec<OutputValue>>> {
         .map(|v| {
             return v.iter().map(|entry| {
                 return OutputValue {
-                    message: entry.1.message.trim().to_string(),
+                    title: entry.1.message.trim().to_string(),
                     delta_t: entry.0[2] as u32,
-                    end: entry.1.committer.timestamp as u32,
-                    start: entry.1.committer.timestamp as u32 - entry.0[2] as u32,
+                    end: DateTime::from_timestamp(entry.1.committer.timestamp as i64, 0).unwrap().to_rfc3339(),
+                    start: DateTime::from_timestamp(entry.1.committer.timestamp as i64 - entry.0[2] as i64, 0).unwrap().to_rfc3339(),
                 };
             })
             .collect::<Vec<OutputValue>>();
@@ -173,13 +174,13 @@ fn main() -> Result<()> {
 
     if args.server {
         let interface = "0.0.0.0:8080";
-        let server_directory = args.server_directory.unwrap_or("./static".to_string());
+        let server_directory = args.server_directory.clone().unwrap_or("./static".to_string());
         println!("Starting Server... on '{interface}' in directory: '{server_directory}'");
         let listener = TcpListener::bind(interface).unwrap();
 
         for stream in listener.incoming() {
             let stream = stream.unwrap();
-            server::handle_connection(stream, &server_directory.trim_end_matches("/"));
+            server::handle_connection(stream, &server_directory.trim_end_matches("/"), &args);
         }
     } else {
 
