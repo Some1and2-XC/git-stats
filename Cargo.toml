@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.84"
+clap = "4.5.4"
 hex = "0.4.3"
 log = "0.4.21"
 miniz_oxide = "0.7.2"

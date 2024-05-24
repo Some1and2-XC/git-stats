@@ -18,6 +18,8 @@ use git_stats::Repo;
 use git_stats::macros::ok_or_continue;
 use git_stats::objects::tree::TreeObject;
 
+mod cli;
+
 /// Subtracts the values of tree1 from tree2.
 /// Includes all the hashes from both trees combined.
 /// The first tree is the newest tree.
