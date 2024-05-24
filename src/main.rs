@@ -76,7 +76,7 @@ struct OutputValue {
 /// Returns response data from CLI args
 fn get_data(args: &cli::cli::CliArgs) -> Result<Vec<Vec<OutputValue>>> {
     // Gets the path from input args
-    let os_string = OsString::from_str(&args.path)?;
+    let os_string = OsString::from_str(&args.directory)?;
     let path = PathBuf::from(&os_string);
 
     // Gets the repository path from the files
@@ -173,8 +173,8 @@ fn main() -> Result<()> {
     let args = cli::cli::CliArgs::parse();
 
     if args.server {
-        let interface = "0.0.0.0:8080";
-        let server_directory = args.server_directory.clone().unwrap_or("./static".to_string());
+        let interface = format!("0.0.0.0:{}", &args.server_port);
+        let server_directory = args.server_directory.clone();
         println!("Starting Server... on '{interface}' in directory: '{server_directory}'");
         let listener = TcpListener::bind(interface).unwrap();
 

@@ -9,7 +9,7 @@ use clap::{
 pub struct CliArgs {
     /// The path to the repo
     #[clap(short, long, default_value=".")]
-    pub path: String,
+    pub directory: String,
 
     /// The branch being targeted
     #[clap(short, long, default_value="main")]
@@ -28,10 +28,14 @@ pub struct CliArgs {
     pub outfile: Option<String>,
 
     /// Flag as to if this should start a server.
-    #[clap(short, long, action)]
+    #[clap(short='S', long, action)]
     pub server: bool,
 
     /// The directory for the static server files.
-    #[clap(short='D', long, default_value=None)]
-    pub server_directory: Option<String>,
+    #[clap(short='D', long, default_value="./static")]
+    pub server_directory: String,
+
+    /// The port to run the server on.
+    #[clap(short='P', long, default_value="8080")]
+    pub server_port: u32,
 }
