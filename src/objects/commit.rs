@@ -1,17 +1,14 @@
-use std::{borrow::Cow, collections::HashMap, str::FromStr};
+use std::borrow::Cow;
 
-use anyhow::{
-    anyhow, ensure, Context, Result
-};
+use anyhow::{anyhow, ensure, Result};
 
 use regex::{Captures, Regex};
 
 use crate::Repo;
 
 use super::{
-    blob::BlobObject,
     tree::TreeObject,
-    get_type_size_and_data, GitObject, GitObjectAttributes, GitObjectType
+    get_type_size_and_data, GitObject, GitObjectAttributes,
 };
 
 /// Object that represents a commit
