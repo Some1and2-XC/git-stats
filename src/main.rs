@@ -1,22 +1,28 @@
 #![allow(unused_imports)]
 
-use std::borrow::{BorrowMut, Cow};
-use std::collections::HashMap;
 use std::{
-    str::FromStr,
-    env::args_os,
-    ffi::OsString,
-    path::PathBuf,
+    borrow::{
+        BorrowMut,
+        Cow
+    }, collections::HashMap, env::args_os, ffi::OsString, io, path::PathBuf, str::FromStr
 };
 
 use anyhow::{anyhow, Result};
-use git_stats::objects::blob::BlobObject;
-use git_stats::objects::commit::CommitObject;
-use git_stats::objects::GitObjectType;
-use git_stats::objects::{GitObject, GitObjectAttributes};
-use git_stats::Repo;
-use git_stats::macros::ok_or_continue;
-use git_stats::objects::tree::TreeObject;
+use clap::Parser;
+use serde::{Serialize, Deserialize};
+
+use git_stats::{
+    objects::{
+        blob::BlobObject,
+        commit::CommitObject,
+        tree::TreeObject,
+        GitObjectType,
+        GitObject,
+        GitObjectAttributes,
+    },
+    Repo,
+    macros::ok_or_continue,
+};
 
 mod cli;
 
@@ -59,22 +65,47 @@ fn tree_diff(current_tree: HashMap<String, BlobObject>, old_tree: HashMap<String
 
 fn main() -> Result<()> {
 
+    let args = cli::cli::Args::parse();
+
     // Gets the path from input args
-    let os_string = args_os()
-        .nth(1)
-        .unwrap_or(OsString::from_str(".")?);
+    let os_string = OsString::from_str(&args.path)?;
     let path = PathBuf::from(&os_string);
 
     // Gets the repository path from the files
     // And enumerates its branches
     let repo = Repo::from_pathbuf(&path)?;
 
-    let mut branch = repo.get_branch("main").unwrap();
+    let mut branch = repo.get_branch(&args.branch).unwrap();
 
     let mut output_values: Vec<([i32;3], CommitObject)> = vec![];
 
     while let Some(parent_oid) = &branch.parent {
         let parent_branch = CommitObject::from_oid(&repo, parent_oid).unwrap();
+
+        if let Some(email) = &args.email {
+            match &branch.committer.email {
+                Some(v) => {
+                    if v != email {
+                        branch = parent_branch;
+                        continue;
+                    }
+                    ()
+                },
+                None => {
+                    branch = parent_branch;
+                    continue;
+                },
+            }
+        }
+
+        if let Some(committer) = &args.committer {
+            if &branch.committer.name != committer {
+                branch = parent_branch;
+                continue;
+            }
+        }
+
+
         let difference = tree_diff(
             branch.get_tree(&repo).unwrap().recurs_create_tree(&repo, ""),
             parent_branch.get_tree(&repo).unwrap().recurs_create_tree(&repo, ""),
@@ -113,32 +144,38 @@ fn main() -> Result<()> {
         .collect()
         ;
 
-    fn get_time(mut n: f32) -> String{
-        if n < 60.0 {
-            return format!("{n:.0}S");
-        }
-        n /= 60.0;
-        if n < 60.0 {
-            return format!("{n:.2}M");
-        }
-        n /= 60.0;
-        if n < 24.0 {
-            return format!("{n:.2}H");
-        }
-        n /= 24.0;
-        return format!("{n:.2}D");
+    #[derive(Serialize, Deserialize)]
+    struct OutputValue {
+        pub message: String,
+        pub delta_t: u32,
+        pub start: u32,
+        pub end: u32,
     }
 
-    let _: Vec<()> = windowed_values
+    let output: Vec<Vec<OutputValue>> = windowed_values
         .iter()
         .map(|v| {
-            for entry in v {
-                println!("{} {} ({})", get_time(entry.0[2] as f32), entry.1.message.trim(), entry.1.committer.timestamp);
-            }
-            println!("\t[END OF GROUP]\n");
-
-            return ();
+            return v.iter().map(|entry| {
+                return OutputValue {
+                    message: entry.1.message.trim().to_string(),
+                    delta_t: entry.0[2] as u32,
+                    end: entry.1.committer.timestamp as u32,
+                    start: entry.1.committer.timestamp as u32 - entry.0[2] as u32,
+                };
+            })
+            .collect::<Vec<OutputValue>>();
         }).collect();
+
+    match &args.outfile {
+        Some(v) => {
+            let file = std::fs::File::create(v).unwrap();
+            let writer = std::io::BufWriter::new(file);
+            serde_json::to_writer(writer, &output).unwrap();
+        },
+        None => {
+            serde_json::to_writer(io::stdout(), &output).unwrap();
+        },
+    }
 
     return Ok(());
 }
