@@ -64,6 +64,8 @@ pub enum GitObjectType {
     Tree(tree::TreeObject),
     /// Blob variant
     Blob(blob::BlobObject),
+    /// Not implemented variant
+    NotImplemented,
     /*
     /// Executable blob variant
     BlobExecutable,
@@ -230,7 +232,10 @@ impl GitObject {
             .join(filename)
             ;
 
-        let data = fs::read(&object_path)?;
+        let data = match fs::read(&object_path) {
+            Ok(v) => v,
+            Err(_) => return Err(anyhow!("Can't find file from oid specified! Path: '{object_path:?}'.")),
+        };
 
         return Ok(GitObject::new(
             sub_folder.to_owned() + filename,

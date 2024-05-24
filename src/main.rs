@@ -65,7 +65,7 @@ fn tree_diff(current_tree: HashMap<String, BlobObject>, old_tree: HashMap<String
     return (lines_removed, lines_added);
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 struct OutputValue {
     pub title: String,
     pub delta_t: u32,
@@ -83,12 +83,12 @@ fn get_data(args: &cli::cli::CliArgs) -> Result<Vec<Vec<OutputValue>>> {
     // And enumerates its branches
     let repo = Repo::from_pathbuf(&path)?;
 
-    let mut branch = repo.get_branch(&args.branch).unwrap();
+    let mut branch = repo.get_branch(&args.branch)?;
 
     let mut output_values: Vec<([i32;3], CommitObject)> = vec![];
 
     while let Some(parent_oid) = &branch.parent {
-        let parent_branch = CommitObject::from_oid(&repo, parent_oid).unwrap();
+        let parent_branch = CommitObject::from_oid(&repo, parent_oid)?;
 
         if let Some(email) = &args.email {
             match &branch.committer.email {
@@ -115,8 +115,8 @@ fn get_data(args: &cli::cli::CliArgs) -> Result<Vec<Vec<OutputValue>>> {
 
 
         let difference = tree_diff(
-            branch.get_tree(&repo).unwrap().recurs_create_tree(&repo, ""),
-            parent_branch.get_tree(&repo).unwrap().recurs_create_tree(&repo, ""),
+            branch.get_tree(&repo)?.recurs_create_tree(&repo, ""),
+            parent_branch.get_tree(&repo)?.recurs_create_tree(&repo, ""),
         );
 
         let time_difference = branch.committer.timestamp - parent_branch.committer.timestamp;
@@ -193,7 +193,7 @@ fn main() -> Result<()> {
                 serde_json::to_writer(writer, &output).unwrap();
             },
             None => {
-                serde_json::to_string(&output).unwrap();
+                println!("{}", serde_json::to_string(&output).unwrap());
             },
         }
     }

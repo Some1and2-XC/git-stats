@@ -44,22 +44,28 @@ pub fn handle_connection(mut stream: TcpStream, path: &str, args: &cli::CliArgs)
 
     let (status_line, contents) = match output_value {
         OutputType::GetData => {
-            let data_content = super::get_data(args).unwrap();
-            let mut flattened_content: Vec<OutputValue> = vec![];
-            for value in data_content {
-                for entry in value {
-                    flattened_content.push(entry);
-                }
+            match super::get_data(args) {
+                Ok(data_content) => {
+                    let mut flattened_content: Vec<OutputValue> = vec![];
+                    for value in data_content {
+                        for entry in value {
+                            flattened_content.push(entry);
+                        }
+                    }
+                    let data_string = serde_json::to_string(&flattened_content).unwrap();
+                    ("HTTP/1.1 200 OK", data_string)
+                },
+                Err(v) => {
+                    ("HTTP/1.1 500 INTERNAL SERVER ERROR", format!("{v}"))
+                },
             }
-            let data_string = serde_json::to_string(&flattened_content).unwrap();
-            ("HTTP/1.1 200 OK", data_string)
         },
         OutputType::File(filename) => {
             let file_path = format!("{}/{}", path, filename.trim_start_matches("/"));
 
             match fs::read_to_string(file_path) {
                 Ok(v) => ("HTTP/1.1 200 OK", v),
-                Err(_) => ("HTTP/1.1 404 OK", "404, not found!".to_string()),
+                Err(_) => ("HTTP/1.1 404 NOT FOUND", "404, not found!".to_string()),
             }
         },
     };

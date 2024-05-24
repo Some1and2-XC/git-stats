@@ -5,6 +5,8 @@ use regex::bytes::Regex;
 use crate::objects::GitObject;
 use crate::Repo;
 
+use crate::macros::ok_or_continue;
+
 use super::{
     blob::BlobObject, get_type_size_and_data, GitObjectAttributes, GitObjectType
 };
@@ -43,6 +45,7 @@ impl TreeObject {
     /// `path` is the path to the root of the tree.
     /// Usually a good value for this is nothing (`""`).
     pub fn recurs_create_tree(&self, repo: &Repo, path: &str) -> HashMap<String, BlobObject> {
+        println!("{}", path);
 
         let mut fs_map: HashMap<String, BlobObject> = HashMap::new();
 
@@ -53,7 +56,14 @@ impl TreeObject {
             } else {
                 filename = format!("{}/{}", path, item.filename);
             }
-            let _ = match GitObject::from_oid(repo, &item.oid).unwrap().initialize_from_data().unwrap() {
+            let git_object_type: GitObjectType;
+            if let Ok(v) = GitObject::from_oid(repo, &item.oid) {
+                git_object_type = v.initialize_from_data().unwrap();
+            } else {
+                git_object_type = GitObjectType::NotImplemented;
+            }
+
+            let _ = match git_object_type {
                 GitObjectType::Commit(_) => panic!("Commit found in object tree!"),
                 GitObjectType::Blob(v) => {
                     match fs_map.insert(filename, v) {
@@ -65,6 +75,7 @@ impl TreeObject {
                     fs_map.extend(v.recurs_create_tree(repo, &filename));
                     ()
                 },
+                GitObjectType::NotImplemented => (),
             };
         }
 
