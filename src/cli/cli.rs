@@ -8,11 +8,11 @@ use clap::{
 #[command(version, about, long_about = None)]
 pub struct CliArgs {
     /// The path to the repo
-    #[clap(short, long)]
+    #[clap(short, long, default_value=".")]
     pub path: String,
 
     /// The branch being targeted
-    #[clap(short, long)]
+    #[clap(short, long, default_value="main")]
     pub branch: String,
 
     /// Enable parsing by email
