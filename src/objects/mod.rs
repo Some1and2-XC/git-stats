@@ -193,8 +193,7 @@ impl GitObject {
     /// ```
     pub fn initialize_from_data(&self) -> Result<GitObjectType> {
 
-        let string_data = self.get_data_as_string()?;
-        let (git_data_type, _, _) = get_type_size_and_data(&string_data)?;
+        let git_data_type = self.get_kind()?;
 
         if git_data_type == "commit" {
             return Ok(GitObjectType::Commit(
@@ -211,6 +210,14 @@ impl GitObject {
         } else {
             return Err(anyhow!("Git Datatype: '{}' not found!", git_data_type));
         }
+    }
+
+    /// Function for getting the variant a git object is.
+    pub fn get_kind(&self) -> Result<String> {
+        let string_data = self.get_data_as_string()?;
+        let (git_data_type, _, _) = get_type_size_and_data(&string_data)?;
+
+        return Ok(git_data_type);
     }
 
     /// Returns the inner data as a string

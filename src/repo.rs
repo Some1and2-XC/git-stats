@@ -3,6 +3,7 @@ use super::GIT_FOLDERNAME;
 use anyhow::{anyhow, ensure, Result};
 
 use core::fmt;
+use std::collections::BTreeMap;
 use std::{
     ffi::OsString, fs,
     path::PathBuf, str::FromStr,
@@ -36,6 +37,8 @@ pub struct Repo {
     /// Is None is the branches haven't been searched for yet.
     /// This attribute is type `Some([Branches])` if is has.
     pub branches: Option<Box<[OsString]>>,
+
+    cached_object_line_counts: BTreeMap<String, u32>,
 }
 
 impl Repo {
@@ -63,10 +66,22 @@ impl Repo {
                 Repo {
                     dir: git_path,
                     branches: None,
+                    cached_object_line_counts: BTreeMap::new(),
                 });
         } else {
             return Err(anyhow!("Couldn't read repo in path: '{:?}'", git_path));
         }
+    }
+
+    /// Tried to add item to cache.
+    /// Returns Some(v) if the item already exists.
+    /// Retunrs None if it doesn't and the item was added.
+    pub fn add_to_cache(&mut self, key: String, value: u32) -> Option<u32> {
+        self.cached_object_line_counts.insert(key, value)
+    }
+
+    pub fn get_from_cache(&self, key: &str) -> Option<&u32> {
+        self.cached_object_line_counts.get(key)
     }
 
     /// Gets a commit object using the oid

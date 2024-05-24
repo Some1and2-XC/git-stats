@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::HashMap};
 
-use anyhow::{anyhow, ensure, Result};
+use anyhow::{anyhow, ensure, Context, Result};
 use regex::bytes::Regex;
 use crate::objects::GitObject;
 use crate::Repo;
@@ -44,10 +44,9 @@ impl TreeObject {
     /// Creates a file system from from tree object.
     /// `path` is the path to the root of the tree.
     /// Usually a good value for this is nothing (`""`).
-    pub fn recurs_create_tree(&self, repo: &Repo, path: &str) -> HashMap<String, BlobObject> {
-        println!("{}", path);
+    pub fn recurs_create_tree_line_count(&self, repo: &mut Repo, path: &str) -> HashMap<String, u32> {
 
-        let mut fs_map: HashMap<String, BlobObject> = HashMap::new();
+        let mut fs_map: HashMap<String, u32> = HashMap::new();
 
         for item in &self.items {
             let filename: String;
@@ -56,26 +55,41 @@ impl TreeObject {
             } else {
                 filename = format!("{}/{}", path, item.filename);
             }
-            let git_object_type: GitObjectType;
-            if let Ok(v) = GitObject::from_oid(repo, &item.oid) {
-                git_object_type = v.initialize_from_data().unwrap();
-            } else {
-                git_object_type = GitObjectType::NotImplemented;
+
+            if let Some(&v) = repo.get_from_cache(&item.oid) {
+                fs_map.insert((&item.oid).to_owned(), v.to_owned());
+                continue;
             }
 
-            let _ = match git_object_type {
+            let git_object = match GitObject::from_oid(repo, &item.oid) {
+                Ok(v) => v,
+                Err(e) => {
+                    // println!("Error reading git file: '{e}'!");
+                    continue;
+                },
+            };
+
+            let _ = match git_object.initialize_from_data().unwrap() {
                 GitObjectType::Commit(_) => panic!("Commit found in object tree!"),
                 GitObjectType::Blob(v) => {
-                    match fs_map.insert(filename, v) {
+                    let line_amnt = v.line_amnt();
+                    if repo.add_to_cache((&item.oid).to_owned(), line_amnt).is_some() {
+                        println!("Item already exists in cache! Item: {}", &item.oid);
+                    }
+                    match fs_map.insert(filename, v.line_amnt()) {
                         Some(_colision_value) => panic!(),
                         None => (),
                     }
                 },
                 GitObjectType::Tree(v) => {
-                    fs_map.extend(v.recurs_create_tree(repo, &filename));
+                    fs_map.extend(v.recurs_create_tree_line_count(repo, &filename));
                     ()
                 },
-                GitObjectType::NotImplemented => (),
+                GitObjectType::NotImplemented => {
+                    let kind = git_object.get_kind().with_context(|| "Couldn't even get kind from git object!").unwrap();
+                    println!("Git object type not: '{kind}' not implemented!");
+                    ()
+                },
             };
         }
 

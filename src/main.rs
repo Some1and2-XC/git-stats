@@ -34,7 +34,7 @@ mod server;
 /// The second tree is the previous tree.
 /// The first return is the amount of lines removed.
 /// The second return is the amount of lines added.
-fn tree_diff(current_tree: HashMap<String, BlobObject>, old_tree: HashMap<String, BlobObject>) -> (i32, i32) {
+fn tree_diff(current_tree: HashMap<String, u32>, old_tree: HashMap<String, u32>) -> (i32, i32) {
     let mut all_keys = current_tree
         .keys()
         .collect::<Vec<&String>>();
@@ -44,14 +44,8 @@ fn tree_diff(current_tree: HashMap<String, BlobObject>, old_tree: HashMap<String
     let mut lines_removed = 0;
 
     for key in all_keys {
-        let new_value = match current_tree.get(key) {
-            Some(v) => v.line_amnt(),
-            None => 0,
-        };
-        let old_value = match old_tree.get(key) {
-            Some(v) => v.line_amnt(),
-            None => 0,
-        };
+        let new_value = current_tree.get(key).unwrap_or(&0).to_owned();
+        let old_value = old_tree.get(key).unwrap_or(&0).to_owned();
 
         let delta = new_value as i32 - old_value as i32;
 
@@ -81,26 +75,34 @@ fn get_data(args: &cli::cli::CliArgs) -> Result<Vec<Vec<OutputValue>>> {
 
     // Gets the repository path from the files
     // And enumerates its branches
-    let repo = Repo::from_pathbuf(&path)?;
+    let mut repo = Repo::from_pathbuf(&path)?;
 
     let mut branch = repo.get_branch(&args.branch)?;
 
     let mut output_values: Vec<([i32;3], CommitObject)> = vec![];
 
     while let Some(parent_oid) = &branch.parent {
-        let parent_branch = CommitObject::from_oid(&repo, parent_oid)?;
+
+        let parent_branch = match CommitObject::from_oid(&repo, parent_oid) {
+            Ok(v) => v,
+            Err(_) => {
+                println!("Can't find branch: '{parent_oid}'");
+                branch.parent = None;
+                continue;
+            },
+        };
 
         if let Some(email) = &args.email {
             match &branch.committer.email {
                 Some(v) => {
                     if v != email {
-                        branch = parent_branch;
+                        branch.parent = None;
                         continue;
                     }
                     ()
                 },
                 None => {
-                    branch = parent_branch;
+                    branch.parent = None;
                     continue;
                 },
             }
@@ -108,15 +110,15 @@ fn get_data(args: &cli::cli::CliArgs) -> Result<Vec<Vec<OutputValue>>> {
 
         if let Some(committer) = &args.committer {
             if &branch.committer.name != committer {
-                branch = parent_branch;
+                branch.parent = None;
                 continue;
             }
         }
 
 
         let difference = tree_diff(
-            branch.get_tree(&repo)?.recurs_create_tree(&repo, ""),
-            parent_branch.get_tree(&repo)?.recurs_create_tree(&repo, ""),
+            branch.get_tree(&repo)?.recurs_create_tree_line_count(&mut repo, ""),
+            parent_branch.get_tree(&repo)?.recurs_create_tree_line_count(&mut repo, ""),
         );
 
         let time_difference = branch.committer.timestamp - parent_branch.committer.timestamp;
