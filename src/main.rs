@@ -4,7 +4,7 @@ use std::{
     borrow::{
         BorrowMut,
         Cow
-    }, collections::HashMap, env::args_os, ffi::OsString, io, net::TcpListener, path::PathBuf, str::FromStr
+    }, collections::HashMap, env::args_os, ffi::OsString, fs, io, net::TcpListener, path::PathBuf, str::FromStr
 };
 
 use anyhow::{anyhow, Result};
@@ -21,6 +21,7 @@ use git_stats::{
         GitObject,
         GitObjectAttributes,
     },
+    packfiles,
     Repo,
     macros::ok_or_continue,
 };
@@ -172,6 +173,8 @@ fn get_data(args: &cli::cli::CliArgs) -> Result<Vec<Vec<OutputValue>>> {
 
 fn main() -> Result<()> {
 
+    std::env::set_var("RUST_BACKTRACE", "1");
+
     let args = cli::cli::CliArgs::parse();
 
     if args.server {
@@ -185,6 +188,32 @@ fn main() -> Result<()> {
             server::handle_connection(stream, &server_directory.trim_end_matches("/"), &args);
         }
     } else {
+
+        let files = std::fs::read_dir(
+            PathBuf::from_str(&args.directory)
+                .unwrap()
+                .join(".git")
+                .join("objects")
+                .join("pack")
+            ).unwrap();
+
+        for file in files {
+            // Only gets idx files
+            let file_path = (&file.unwrap()).path();
+            if !file_path.file_name().unwrap().to_string_lossy().to_string().ends_with("pack") {
+                continue;
+            }
+
+            println!("Found file: '{file_path:?}'");
+            let hash = packfiles::Hash(
+                b"\x53\x4e\x71\xdc\x55\xa7\xf4\x90\xdc\xd3\xaa\x53\x4f\x16\x27\x1c\xda\x92\xab\xeb".to_owned());
+            // let hash = packfiles::Hash([217, 95, 147, 113, 183, 33, 59, 195, 114, 202, 244, 37, 111, 44, 135, 55, 20, 76, 240, 202]);
+            let mut packfile = packfiles::Pack::from_path(file_path.to_str().unwrap()).unwrap();
+            let offset = packfile.get_pack_offset(hash).unwrap();
+            println!("Offset: {offset:?}");
+        }
+
+        return Ok(());
 
         let output = get_data(&args)?;
 

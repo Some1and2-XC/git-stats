@@ -23,6 +23,8 @@ pub mod objects;
 /// the [`macros::ok_or_continue`] macro.
 pub mod macros;
 
+pub mod packfiles;
+
 mod repo;
 
 pub use crate::repo::Repo;
