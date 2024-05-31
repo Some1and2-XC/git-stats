@@ -1,8 +1,10 @@
 // https://dev.to/calebsander/git-internals-part-2-packfiles-1jg8
 
+use core::fmt;
 use std::{borrow::BorrowMut, fs::File, io::{self, Read, Seek, SeekFrom}, path::PathBuf, str::FromStr};
 
 use regex::Regex;
+use colored::Colorize;
 
 use anyhow::{anyhow, Result};
 use log;
@@ -14,6 +16,39 @@ const HASH_SIZE: usize = 20;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct Hash(pub [u8;HASH_SIZE]);
+
+impl Hash {
+    pub fn to_string(&self) -> String {
+        let values: [char;16] = [
+            '0','1','2','3',
+            '4','5','6','7',
+            '8','9','a','b',
+            'c','d','e','f'];
+
+        return self.0
+            .iter()
+            .map(|idx| {
+                // Each byte is a u8
+                // this means however that each value being iterated on is actually two characters
+                // in utf-8
+                let left = idx >> 4; // Does bit shifting to filter
+                let right = idx & b'\x0f'; // Filters value
+
+                // Returns left & right
+                return format!(
+                    "{}{}",
+                    values[left as usize],
+                    values[right as usize],
+                    );
+            }).collect();
+    }
+}
+
+impl fmt::Display for Hash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        return write!(f, "{}", self.to_string());
+    }
+}
 
 /// Represents an index packfile
 pub struct Idx {
@@ -55,7 +90,7 @@ impl Idx {
         self.file.seek(SeekFrom::Start(8))?;
 
         // The cumulative amount of objects up to that bin
-        // (each bin refering to basically the filename)
+        // (each bin refering to basically the foldername)
         let cumulative_objects: Vec<u32> = (0..=u8::MAX)
             .map(|_| self.read_u32().unwrap())
             .collect()
@@ -164,21 +199,20 @@ impl Idx {
         use std::cmp::Ordering::*;
         // let (mut left, mut right) = self.get_object_bounds(&hash)?;
         let (mut left, mut right) = (0, 9000);
-        println!("{left} {right} {hash:?}");
+        println!("Searching for hash: {hash} left: {left} right: {right}");
         // Does binary search
         while left < right {
             let middle = left + (right - left) / 2;
             self.seek_without_index(middle as u64)?;
             let mid_hash = self.read_hash()?;
-            // println!("{mid_hash:?} {left} {right}");
             match hash.cmp(&mid_hash) {
                 Less => {
-                    println!("-> {mid_hash:?} {left} {right}");
+                    println!("{} {mid_hash} {left} {right}", "<-".red());
                     right = middle
                 },
                 Equal => return Ok(Some(middle)),
                 Greater => {
-                    println!("<- {mid_hash:?} {left} {right}");
+                    println!("{} {mid_hash} {left} {right}", "->".green());
                     left = middle + 1
                 },
             }
