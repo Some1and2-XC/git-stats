@@ -7,7 +7,7 @@ use regex::Regex;
 use colored::Colorize;
 
 use anyhow::{anyhow, Result};
-use log;
+use log::{self, debug};
 
 // The most significant bit of a 32 bit int.
 // Used to see if the pack file uses 64 bit offsets.
@@ -172,9 +172,9 @@ impl Idx {
     fn seek_without_index(&mut self, offset: u64) -> Result<()> {
         // Skips the cumulative object counts and the previous hashes.
         self.seek_without_headers(
-            offset * (HASH_SIZE as u64) + // skips previous values
-            (u8::MAX as u64) * 4 + // skips lookup table
-            4,
+            offset * ((HASH_SIZE / 4) as u64) + // skips previous values
+            (u8::MAX as u64) + // skips lookup table
+            1,
             )?;
 
         return Ok(());
@@ -197,9 +197,8 @@ impl Idx {
 
     fn get_object_index(&mut self, hash: Hash) -> Result<Option<u32>> {
         use std::cmp::Ordering::*;
-        // let (mut left, mut right) = self.get_object_bounds(&hash)?;
-        let (mut left, mut right) = (0, 9000);
-        println!("Searching for hash: {hash} left: {left} right: {right}");
+        let (mut left, mut right) = self.get_object_bounds(&hash)?;
+        debug!("Searching for hash: {hash} left: {left} right: {right}");
         // Does binary search
         while left < right {
             let middle = left + (right - left) / 2;
@@ -207,17 +206,17 @@ impl Idx {
             let mid_hash = self.read_hash()?;
             match hash.cmp(&mid_hash) {
                 Less => {
-                    println!("{} {mid_hash} {left} {right}", "<-".red());
+                    debug!("{} {mid_hash} {left} {right}", "<-".red());
                     right = middle
                 },
                 Equal => return Ok(Some(middle)),
                 Greater => {
-                    println!("{} {mid_hash} {left} {right}", "->".green());
+                    debug!("{} {mid_hash} {left} {right}", "->".green());
                     left = middle + 1
                 },
             }
         }
-        println!("Didn't find thing!");
+        debug!("Didn't find hash in packfile!");
         Ok(None)
     }
 

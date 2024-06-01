@@ -205,13 +205,8 @@ fn main() -> Result<()> {
             }
 
             println!("Found file: '{file_path:?}'");
-            /*
             let hash = packfiles::Hash(
                 b"\x53\x4e\x71\xdc\x55\xa7\xf4\x90\xdc\xd3\xaa\x53\x4f\x16\x27\x1c\xda\x92\xab\xeb".to_owned());
-            let hash = packfiles::Hash([217, 95, 147, 113, 183, 33, 59, 195, 114, 202, 244, 37, 111, 44, 135, 55, 20, 76, 240, 202]);
-            */
-            let hash = packfiles::Hash(
-                b"\x4a\xfc\xbc\x5b\x77\xbc\x23\x09\x06\x5a\xa3\x9a\x87\xc6\xed\xdc\x2f\xac\x52\x47".to_owned());
             let mut packfile = packfiles::Pack::from_path(file_path.to_str().unwrap()).unwrap();
             let offset = packfile.get_pack_offset(hash).unwrap();
             println!("Offset: {offset:?}");
