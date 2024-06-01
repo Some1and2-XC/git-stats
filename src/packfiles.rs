@@ -7,7 +7,7 @@ use regex::Regex;
 use colored::Colorize;
 
 use anyhow::{anyhow, Result};
-use log::{self, debug};
+use log::{self, debug, info};
 
 // The most significant bit of a 32 bit int.
 // Used to see if the pack file uses 64 bit offsets.
@@ -111,7 +111,7 @@ impl Idx {
         }
 
         let total_objects = hashes.len();
-        println!("{total_objects}");
+        info!("Total Objects: {total_objects}");
         assert_eq!(total_objects, cumulative_objects.last().unwrap().clone() as usize);
 
         // Ignores the hashes for all the files.
@@ -131,8 +131,6 @@ impl Idx {
                 long_offsets = long_offsets.max(offset_index + 1);
             }
         }
-
-        println!("{:?}", pack_offsets_lst[14]);
 
         return Ok(());
     }
@@ -171,11 +169,13 @@ impl Idx {
     /// Seeks 'offset' from file but skips the first two encoding bytes and the entire hash lookup table.
     fn seek_without_index(&mut self, offset: u64) -> Result<()> {
         // Skips the cumulative object counts and the previous hashes.
-        self.seek_without_headers(
-            offset * ((HASH_SIZE / 4) as u64) + // skips previous values
-            (u8::MAX as u64) + // skips lookup table
-            1,
-            )?;
+        self.file.seek(SeekFrom::Start(
+            // Skips magic byte, version and sets offset.
+            4 + 4 +
+            offset * (HASH_SIZE as u64) + // skips previous values
+            (u8::MAX as u64 * 4) + // skips lookup table
+            4, // Honestly idek
+            ))?;
 
         return Ok(());
     }
@@ -183,7 +183,6 @@ impl Idx {
     /// Gets the upper and lower bounds of where a hash could be from index file.
     fn get_object_bounds(&mut self, hash: &Hash) -> Result<(u32, u32)> {
         let first_hash_byte = hash.0[0];
-        println!("{first_hash_byte}");
         let index_lower_bound = if first_hash_byte == 0 {
             self.seek_without_headers(0)?;
             0
@@ -198,7 +197,7 @@ impl Idx {
     fn get_object_index(&mut self, hash: Hash) -> Result<Option<u32>> {
         use std::cmp::Ordering::*;
         let (mut left, mut right) = self.get_object_bounds(&hash)?;
-        debug!("Searching for hash: {hash} left: {left} right: {right}");
+        debug!("B-Tree Searching for Hash: {hash}! left: {left} right: {right}");
         // Does binary search
         while left < right {
             let middle = left + (right - left) / 2;

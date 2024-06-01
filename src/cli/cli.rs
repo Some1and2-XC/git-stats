@@ -3,6 +3,10 @@ use clap::{
     command
 };
 
+use log::LevelFilter;
+use git_stats::macros::clap_enum_variants;
+
+
 /// A utility for parsing through git repos
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -38,4 +42,11 @@ pub struct CliArgs {
     /// The port to run the server on.
     #[clap(short='P', long, default_value="8080")]
     pub server_port: u32,
+
+    /// Sets the verbosity of logs
+    #[arg(long,
+          default_value_t=LevelFilter::Off,
+          value_name="LevelFilter",
+          value_parser=clap_enum_variants!(LevelFilter))]
+    pub logs: LevelFilter,
 }

@@ -9,21 +9,14 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
+use log::{debug, info, Level, Metadata, Record};
 use serde::{Serialize, Deserialize};
 use chrono::prelude::{DateTime, Utc};
 
 use git_stats::{
-    objects::{
-        blob::BlobObject,
-        commit::CommitObject,
-        tree::TreeObject,
-        GitObjectType,
-        GitObject,
-        GitObjectAttributes,
-    },
-    packfiles,
-    Repo,
-    macros::ok_or_continue,
+    macros::ok_or_continue, objects::{
+        blob::BlobObject, commit::CommitObject, tree::TreeObject, GitObject, GitObjectAttributes, GitObjectType
+    }, packfiles::{self, Pack}, Repo
 };
 
 mod cli;
@@ -175,12 +168,18 @@ fn main() -> Result<()> {
 
     std::env::set_var("RUST_BACKTRACE", "1");
 
+    // Gets CLI arguments
     let args = cli::cli::CliArgs::parse();
+
+    // Initializes the logger
+    if let Some(level) = args.logs.to_level() {
+        simple_logger::init_with_level(level).unwrap();
+    }
 
     if args.server {
         let interface = format!("0.0.0.0:{}", &args.server_port);
         let server_directory = args.server_directory.clone();
-        println!("Starting Server... on '{interface}' in directory: '{server_directory}'");
+        info!("Starting Server... on '{interface}' in directory: '{server_directory}'");
         let listener = TcpListener::bind(interface).unwrap();
 
         for stream in listener.incoming() {
@@ -204,12 +203,12 @@ fn main() -> Result<()> {
                 continue;
             }
 
-            println!("Found file: '{file_path:?}'");
+            debug!("Found file: '{:?}'", file_path.file_name().unwrap());
             let hash = packfiles::Hash(
                 b"\x53\x4e\x71\xdc\x55\xa7\xf4\x90\xdc\xd3\xaa\x53\x4f\x16\x27\x1c\xda\x92\xab\xeb".to_owned());
             let mut packfile = packfiles::Pack::from_path(file_path.to_str().unwrap()).unwrap();
             let offset = packfile.get_pack_offset(hash).unwrap();
-            println!("Offset: {offset:?}");
+            debug!("Offset: {offset:?}");
         }
 
         return Ok(());
