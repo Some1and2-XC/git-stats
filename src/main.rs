@@ -202,13 +202,9 @@ fn main() -> Result<()> {
             if !file_path.file_name().unwrap().to_string_lossy().to_string().ends_with("pack") {
                 continue;
             }
-
             debug!("Found file: '{:?}'", file_path.file_name().unwrap());
-            let hash = packfiles::Hash(
-                b"\x53\x4e\x71\xdc\x55\xa7\xf4\x90\xdc\xd3\xaa\x53\x4f\x16\x27\x1c\xda\x92\xab\xeb".to_owned());
             let mut packfile = packfiles::Pack::from_path(file_path.to_str().unwrap()).unwrap();
-            let offset = packfile.get_pack_offset(hash).unwrap();
-            debug!("Offset: {offset:?}");
+            packfile.run();
         }
 
         return Ok(());
