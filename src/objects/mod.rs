@@ -64,6 +64,8 @@ pub enum GitObjectType {
     Tree(tree::TreeObject),
     /// Blob variant
     Blob(blob::BlobObject),
+    /// Tag variatn
+    Tag,
     /// Not implemented variant
     NotImplemented,
     /*

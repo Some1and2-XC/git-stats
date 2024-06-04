@@ -9,6 +9,8 @@ use colored::Colorize;
 use anyhow::{anyhow, Result};
 use log::{self, debug, info};
 
+use crate::objects::GitObjectType;
+
 // The most significant bit of a 32 bit int.
 // Used to see if the pack file uses 64 bit offsets.
 const LONG_OFFSET_FLAG: u32 = 1 << 31;
@@ -50,6 +52,12 @@ impl BytesFile {
         let bytes = self.read_bytes()?;
         return Ok(Hash(bytes));
     }
+}
+
+enum PackObjectType {
+    Base(GitObjectType),
+    OffsetDelta,
+    HashDelta,
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Copy)]
@@ -245,16 +253,12 @@ impl Idx {
         debug!("Finding file '{offset}' of '{total_object_count}'");
 
         let crc_32_bytes = total_object_count * (HASH_SIZE as u32 + 4);
+        self.seek_without_headers((crc_32_bytes + offset * 4) as u64).unwrap();
 
-        let file_index = (crc_32_bytes + offset * 4) as u64;
-        debug!("File Index: '{file_index}'");
-
-        self.seek_without_headers(file_index).unwrap();
         let pack_offset = self.file.read_u32().unwrap();
-        debug!("Pack offset: '{pack_offset}'");
         // If uses long offsets, read long offsets.
         if pack_offset & LONG_OFFSET_FLAG == 0 {
-            debug!("Unpacking offset value without long offset flag.");
+            debug!("Unpacking offset value without long offset flag...");
             return Ok(pack_offset as u64);
         } else {
             let offset_index = pack_offset & !LONG_OFFSET_FLAG;
@@ -262,7 +266,7 @@ impl Idx {
                 (crc_32_bytes +
                 offset * 8) as u64,
                 )?;
-            debug!("Unpacking offset value with long offset flag.");
+            debug!("Unpacking offset value with long offset flag...");
             return self.file.read_u64();
         }
     }
@@ -357,25 +361,32 @@ impl Pack {
         }
     }
 
-    pub fn read_pack_object(&mut self, offset: u64) -> Result<()> {
+    pub fn read_pack_object(&mut self, offset: u64) -> Result<usize> {
         self.file.data.seek(SeekFrom::Start(offset))?;
-        let type_and_size = self.read_size_encoding().unwrap();
+        let type_and_size = self.read_size_encoding()?;
         debug!("Type and Size: {type_and_size:b}");
-        return Ok(());
+        return Ok(type_and_size);
+    }
+
+    pub fn read_type_and_size(&mut self, offset: u64) -> Result<(u8, usize)> {
+        let v = self.read_pack_object(offset)?;
+        let object_first_four = v & 0b1111; // lower 4
+        let object_type = (v >> 4) & 0b111; // the 3 after
+        let object_size = v >> 7; // the rest
+        return Ok((object_type as u8, object_size));
     }
 
     pub fn run(&mut self) -> Result<()> {
         let hashes: Vec<Hash> = vec![
-            // Hash(b"\x53\x71\x41\x95\xca\xec\x3f\xdb\xca\xf2\x1d\x4f\x1e\xc5\x19\x11\xfd\x2d\x5c\xb6".to_owned()), // 30677134653415695
-            // Hash(b"\x53\x43\x95\x3d\xa4\xcf\x06\x59\xa2\x5f\x63\xd0\x33\x87\xe7\x78\x6e\x89\x0e\xd1".to_owned()), // 122881307880357819
-            // Hash(b"\x53\x4e\x71\xdc\x55\xa7\xf4\x90\xdc\xd3\xaa\x53\x4f\x16\x27\x1c\xda\x92\xab\xeb".to_owned()), // 926845331
+            Hash(b"\x53\x71\x41\x95\xca\xec\x3f\xdb\xca\xf2\x1d\x4f\x1e\xc5\x19\x11\xfd\x2d\x5c\xb6".to_owned()),
+            Hash(b"\x53\x43\x95\x3d\xa4\xcf\x06\x59\xa2\x5f\x63\xd0\x33\x87\xe7\x78\x6e\x89\x0e\xd1".to_owned()),
+            Hash(b"\x53\x4e\x71\xdc\x55\xa7\xf4\x90\xdc\xd3\xaa\x53\x4f\x16\x27\x1c\xda\x92\xab\xeb".to_owned()),
             Hash(b"\x53\x53\xbc\xbe\xa8\xa1\x73\x77\x2a\x21\x17\x72\x9f\xe0\x6c\x6b\xf7\x35\xd0\x1f".to_owned()),
         ];
 
         for &hash in hashes.iter() {
             let offset = self.get_pack_offset(hash).unwrap().unwrap();
-            debug!("Offset: {offset:?}");
-            self.read_pack_object(offset).unwrap();
+            println!("{:?}", self.read_type_and_size(offset).unwrap());
         }
         return Ok(());
     }

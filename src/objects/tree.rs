@@ -1,6 +1,7 @@
 use std::{borrow::Cow, collections::HashMap};
 
 use anyhow::{anyhow, ensure, Context, Result};
+use log::{debug, warn};
 use regex::bytes::Regex;
 use crate::objects::GitObject;
 use crate::Repo;
@@ -64,7 +65,7 @@ impl TreeObject {
             let git_object = match GitObject::from_oid(repo, &item.oid) {
                 Ok(v) => v,
                 Err(e) => {
-                    // println!("Error reading git file: '{e}'!");
+                    log::warn!("Error reading git file: '{e}'!");
                     continue;
                 },
             };
@@ -74,7 +75,7 @@ impl TreeObject {
                 GitObjectType::Blob(v) => {
                     let line_amnt = v.line_amnt();
                     if repo.add_to_cache((&item.oid).to_owned(), line_amnt).is_some() {
-                        println!("Item already exists in cache! Item: {}", &item.oid);
+                        log::error!("Item already exists in cache! Item: {}", &item.oid);
                     }
                     match fs_map.insert(filename, v.line_amnt()) {
                         Some(_colision_value) => panic!(),
@@ -85,9 +86,14 @@ impl TreeObject {
                     fs_map.extend(v.recurs_create_tree_line_count(repo, &filename));
                     ()
                 },
+                GitObjectType::Tag => {
+                    let kind = git_object.get_kind().with_context(|| "Tag object aren't implemented!").unwrap();
+                    warn!("Git object type not: '{kind}' not implemented!");
+                    ()
+                },
                 GitObjectType::NotImplemented => {
                     let kind = git_object.get_kind().with_context(|| "Couldn't even get kind from git object!").unwrap();
-                    println!("Git object type not: '{kind}' not implemented!");
+                    warn!("Git object type not: '{kind}' not implemented!");
                     ()
                 },
             };
