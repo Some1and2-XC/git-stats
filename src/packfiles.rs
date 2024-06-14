@@ -3,11 +3,12 @@
 use core::fmt;
 use std::{fs::File, io::{self, Read, Seek, SeekFrom}, path::PathBuf, str::FromStr};
 
+use flate2::read::ZlibDecoder;
 use regex::Regex;
 use colored::Colorize;
 
 use anyhow::{anyhow, Result};
-use log::{self, debug, info};
+use log::{self, debug};
 
 use crate::objects::GitObjectType;
 
@@ -54,6 +55,7 @@ impl BytesFile {
     }
 }
 
+#[derive(Debug)]
 enum PackObjectType {
     Base(GitObjectType),
     OffsetDelta,
@@ -361,19 +363,56 @@ impl Pack {
         }
     }
 
-    pub fn read_pack_object(&mut self, offset: u64) -> Result<usize> {
+    pub fn read_type_and_size(&mut self, offset: u64) -> Result<(u8, usize)> {
+
         self.file.data.seek(SeekFrom::Start(offset))?;
-        let type_and_size = self.read_size_encoding()?;
-        debug!("Type and Size: {type_and_size:b}");
-        return Ok(type_and_size);
+        let v = self.read_size_encoding()?;
+
+        // the data is s..ssstttxxxx
+        // where
+        // ssss is object_size (can be any length including 0)
+        // ttt is object_type (allways 3 bits)
+        // xxxx is (I'm not exactly sure yet and always 4 bits)
+
+        let object_first_four = v & 0b1111;
+        let object_type = (v >> 4) & 0b111;
+        // let object_size = (v >> 7) | (v >> 7 << 4);
+        let object_size = v >> 7;
+
+        debug!("Type and Size: '{v:b}' -> Type: '{object_type}' & Size: '{object_size}'");
+
+        return Ok((object_type as u8, object_size));
     }
 
-    pub fn read_type_and_size(&mut self, offset: u64) -> Result<(u8, usize)> {
-        let v = self.read_pack_object(offset)?;
-        let object_first_four = v & 0b1111; // lower 4
-        let object_type = (v >> 4) & 0b111; // the 3 after
-        let object_size = v >> 7; // the rest
-        return Ok((object_type as u8, object_size));
+    fn read_pack_object(&mut self, offset: u64) -> Result<()> {
+        // Result<PackObjectType> {
+
+        // use GitObjectType::*;
+        // use PackObjectType::*;
+
+        let (object_type, object_size) = self.read_type_and_size(offset)?;
+
+        let is_object = match object_type {
+            1..=4 => true,
+            _ => false,
+        };
+
+        let _ = match is_object {
+            true => {
+                let mut contents = Vec::with_capacity(object_size);
+                ZlibDecoder::new(self.file.data.by_ref()).read_to_end(&mut contents)?;
+                if contents.len() != object_size {
+                    debug!("Contents size and object size aren't the same! Contents: '{}' & Object Size: '{object_size}'", contents.len());
+                }
+                // assert_eq!(contents.len(), object_size);
+                debug!("{:?}", String::from_utf8_lossy(contents.as_slice()));
+            },
+            false => {
+                // todo!()
+            },
+        };
+
+        return Ok(());
     }
 
     pub fn run(&mut self) -> Result<()> {
@@ -386,7 +425,7 @@ impl Pack {
 
         for &hash in hashes.iter() {
             let offset = self.get_pack_offset(hash).unwrap().unwrap();
-            println!("{:?}", self.read_type_and_size(offset).unwrap());
+            println!("{:?}", self.read_pack_object(offset).unwrap());
         }
         return Ok(());
     }
