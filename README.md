@@ -1,9 +1,11 @@
-
 # git-stats
 A CLI tool for generating fully customizable reports of git commit activities.
 
+<img src="https://github.com/Some1and2-XC/git-stats/blob/main/examples/server.png" />
+
 ## Features
-### Easily Generate Weekly Work Reports
+
+### Easily Generate Weekly Work Reports ([example](https://github.com/Some1and2-XC/git-stats/blob/main/examples/may_12-18_2024.pdf))
 Have you ever needed to make a report of what you have been working on for any reason as a software dev? Needing to use programs to manually keep track of what you have been doing can be an arduous task. Especially since you already have been doing exactly that but in a way that's more reasonable: using git. What this program does is allows you to see all the work you have done but in a more legible format than the one that is default for storing your git files. If you go in the list view you can even use your browsers print functionality to make a report of all the things you have done in the week.
 
 ### Built in http server
