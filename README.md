@@ -41,7 +41,7 @@ When you merge commits, you actually have two parents save in a commit. While un
 ## Todo!
  - Fix all the known limitations. Also fix all the build warnings.
  - Add a few more features, such as allowing users to set the window function for work blocks (which is 5h atm.)
- - Allow more control over the API client side, such as get <i>n</i> commits or get commits until <i>dd-mm-yyyy</n>.
+ - Allow more control over the API client side, such as get <i>n</i> commits or get commits until <i>dd-mm-yyyy</i>.
 
 ## Shoutouts
-A series of articles that helped massively was from a [dev.to](https://dev.to/calebsander/git-internals-part-2-packfiles-1jg8) user calebsander. They wrote the most comprehensive guide as to how git packfiles work. I would probably give up writing my implementation without them.
+<i>A series of articles that helped massively was from a [dev.to](https://dev.to/calebsander/git-internals-part-2-packfiles-1jg8) user calebsander. They wrote the most comprehensive guide as to how git packfiles work. I would probably give up writing my implementation without them.</i>
