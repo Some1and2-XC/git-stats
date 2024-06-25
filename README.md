@@ -9,7 +9,7 @@ A CLI tool for generating fully customizable reports of git commit activities.
 Have you ever needed to make a report of what you have been working on for any reason as a software dev? Needing to use programs to manually keep track of what you have been doing can be an arduous task. Especially since you already have been doing exactly that but in a way that's more reasonable: using git. What this program does is allows you to see all the work you have done but in a more legible format than the one that is default for storing your git files. If you go in the list view you can even use your browsers print functionality to make a report of all the things you have done in the week.
 
 ### Built in http server
-For this project, it was decided that having a built in http server could be helpful for making reports easily accessible. At the moment, I'm 95% certain a directory traversal attack is possible so having this be a public facing endpoint isn't exactly recommended (this will be looked at and patched later.) That being said the API for starting this http server is fully customizable. The generated html is just calling a local endpoint which is set by the server and managing everything else client side. This means that creating a custom UI is as easy as just setting the -D argument to your own web files.
+For this project, it was decided that having a built in http server could be helpful for making reports easily accessible. The API for starting this http server is fully customizable. The generated html is just calling a local endpoint which is set by the server and managing everything else client side. This means that creating a custom UI is as easy as just setting the -D argument to your own web files.
 
 Ex:
 ```sh
