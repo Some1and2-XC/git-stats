@@ -40,7 +40,7 @@ pub fn handle_connection(mut stream: TcpStream, path: &str, args: &cli::CliArgs)
     let out_path = get_path(&mut buf_reader).unwrap_or("/404".to_string());
     let output_value: OutputType;
 
-    if out_path == "/api/data" {
+    if out_path == args.server_uri {
         output_value = OutputType::GetData;
     } else if out_path == "/" {
         output_value = OutputType::File("/index.html".to_string());

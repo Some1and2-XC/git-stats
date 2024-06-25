@@ -43,6 +43,10 @@ pub struct CliArgs {
     #[clap(short='P', long, default_value="8080")]
     pub server_port: u32,
 
+    /// Sets the URI the server serves repo stats on.
+    #[clap(short='U', long, default_value="/api/data")]
+    pub server_uri: String,
+
     /// Sets the verbosity of logs
     #[arg(long,
           default_value_t=LevelFilter::Off,
