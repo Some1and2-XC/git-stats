@@ -10,6 +10,7 @@ clap = { version = "4.5.4", features = ["derive", "string"] }
 colored = "2.1.0"
 flate2 = "1.0.30"
 hex = "0.4.3"
+httparse = "1.9.4"
 log = "0.4.21"
 miniz_oxide = "0.7.2"
 regex = "1.10.4"
